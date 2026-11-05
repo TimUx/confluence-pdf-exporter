@@ -25,9 +25,12 @@ Stand: 2026-11-05.
   wurde lokal erfolgreich ausgeführt.
 - GitHub Actions auf Commit `12b5d99`: Push- und Pull-Request-Verifikationsläufe
   beide **success** (Läufe `42079611247` und `42079630815`).
-- GitHub Actions auf dem aktuellen Commit `f8e3a07`: Push- und
+- GitHub Actions auf Commit `f8e3a07`: Push- und
   Pull-Request-Verifikationsläufe beide **success** (Läufe `42080949939`
   und `42080958897`).
+- Nach Aktualisierung auf Node-24-kompatible Actions (`checkout@v5`,
+  `setup-java@v5`, `upload-artifact@v7`, `ubuntu-24.04`) sind Push und PR
+  auf Commit `c82a1a8` **success** (Läufe `42081544451` und `42081557482`).
 
 ## Nacharbeit auf demselben Branch
 
