@@ -1,0 +1,73 @@
+name: Release plugin
+on:
+  push:
+    tags: ['v*.*.*']
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Validate release tag and set Maven version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          VERSION="${TAG#v}"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          mvn -B -ntp org.codehaus.mojo:versions-maven-plugin:2.20.1:set \
+            -DnewVersion="$VERSION" -DgenerateBackupPoms=false
+      - name: Verify the exact release build
+        run: mvn -B -ntp -Djava.awt.headless=true clean verify
+      - name: Prepare JAR, sources and checksums
+        run: |
+          mkdir -p release
+          BUNDLE="confluence-plugin/target/confluence-pdf-exporter-$VERSION.jar"
+          test -s "$BUNDLE"
+          jar tf "$BUNDLE" | grep -Fxq 'atlassian-plugin.xml'
+          cp "$BUNDLE" release/
+          git archive --format=zip --output="release/plugin-sources-$VERSION.zip" HEAD
+          mvn -B -ntp -pl renderer-core org.apache.maven.plugins:maven-dependency-plugin:3.9.0:copy-dependencies \
+            -Dclassifier=sources -DincludeGroupIds=io.github.openhtmltopdf \
+            -DoutputDirectory="$GITHUB_WORKSPACE/release/third-party-sources" \
+            -Dmdep.failOnMissingClassifierArtifact=true
+          (cd release && zip -qr "renderer-library-sources-$VERSION.zip" third-party-sources \
+            && sha256sum ./*.jar ./*.zip > SHA256SUMS)
+      - name: Preserve release artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ env.VERSION }}
+          path: |
+            release/*.jar
+            release/*.zip
+            release/SHA256SUMS
+      - name: Create draft release with installable plugin bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" release/*.jar release/*.zip release/SHA256SUMS \
+            --verify-tag --draft --title "Universal PDF Exporter $VERSION" \
+            --notes "Built and automatically tested with Java 21 against Confluence 10.2.19 APIs. Real Confluence installation and cluster validation remain required; see QA-STATUS.md and INSTALLATION.md. The plugin-sources archive preserves the tag's source POM version; the build sets it to the tag version."
+      - name: Verify the installable bundle is attached unchanged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          BUNDLE_NAME="confluence-pdf-exporter-$VERSION.jar"
+          attached="$(gh release view "$TAG" --json assets --jq ".assets | any(.name == \"$BUNDLE_NAME\" and .size > 0)")"
+          test "$attached" = true
+          mkdir downloaded
+          gh release download "$TAG" --pattern "$BUNDLE_NAME" --dir downloaded
+          cmp "release/$BUNDLE_NAME" "downloaded/$BUNDLE_NAME"

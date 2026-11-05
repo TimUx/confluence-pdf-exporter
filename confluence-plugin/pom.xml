@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>io.github.timux</groupId><artifactId>confluence-pdf-exporter-parent</artifactId><version>1.0.0-SNAPSHOT</version></parent>
+  <artifactId>confluence-pdf-exporter</artifactId>
+  <packaging>bundle</packaging>
+  <dependencies>
+    <dependency><groupId>io.github.timux</groupId><artifactId>renderer-core</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>jakarta.servlet</groupId><artifactId>jakarta.servlet-api</artifactId><version>6.0.0</version><scope>provided</scope></dependency>
+    <dependency><groupId>com.atlassian.confluence</groupId><artifactId>confluence</artifactId><version>${confluence.version}</version><scope>provided</scope>
+      <exclusions><exclusion><groupId>*</groupId><artifactId>*</artifactId></exclusion></exclusions>
+    </dependency>
+    <dependency><groupId>com.atlassian.confluence</groupId><artifactId>confluence-java-api</artifactId><version>${confluence.version}</version><scope>provided</scope>
+      <exclusions><exclusion><groupId>*</groupId><artifactId>*</artifactId></exclusion></exclusions>
+    </dependency>
+    <dependency><groupId>com.atlassian.sal</groupId><artifactId>sal-api</artifactId><version>7.0.8</version><scope>provided</scope>
+      <exclusions><exclusion><groupId>*</groupId><artifactId>*</artifactId></exclusion></exclusions>
+    </dependency>
+    <dependency><groupId>com.atlassian.beehive</groupId><artifactId>beehive-api</artifactId><version>6.1.8</version><scope>provided</scope>
+      <exclusions><exclusion><groupId>*</groupId><artifactId>*</artifactId></exclusion></exclusions>
+    </dependency>
+    <dependency><groupId>com.atlassian.user</groupId><artifactId>atlassian-user</artifactId><version>3.0.3</version><scope>provided</scope>
+      <exclusions><exclusion><groupId>*</groupId><artifactId>*</artifactId></exclusion></exclusions>
+    </dependency>
+    <dependency><groupId>com.atlassian.core</groupId><artifactId>atlassian-core</artifactId><version>10.0.9</version><scope>provided</scope>
+      <exclusions><exclusion><groupId>*</groupId><artifactId>*</artifactId></exclusion></exclusions>
+    </dependency>
+    <dependency><groupId>com.atlassian.confluence</groupId><artifactId>confluence-bonnie</artifactId><version>${confluence.version}</version><scope>provided</scope>
+      <exclusions><exclusion><groupId>*</groupId><artifactId>*</artifactId></exclusion></exclusions>
+    </dependency>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
+    <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><version>5.20.0</version><scope>test</scope></dependency>
+  </dependencies>
+  <build>
+    <resources>
+      <resource><directory>src/main/resources</directory><filtering>true</filtering></resource>
+      <resource><directory>..</directory><targetPath>META-INF</targetPath>
+        <includes><include>THIRD-PARTY-NOTICES.md</include></includes><filtering>false</filtering>
+      </resource>
+    </resources>
+    <plugins>
+      <plugin><groupId>org.apache.felix</groupId><artifactId>maven-bundle-plugin</artifactId><version>6.0.2</version><extensions>true</extensions>
+        <configuration><instructions>
+          <Bundle-SymbolicName>io.github.timux.confluence.pdf</Bundle-SymbolicName>
+          <Atlassian-Plugin-Key>io.github.timux.confluence.pdf</Atlassian-Plugin-Key>
+          <Bundle-Name>Universal PDF Exporter</Bundle-Name>
+          <Private-Package>io.github.timux.pdf.confluence,io.github.timux.pdf.hostconfig,io.github.timux.pdf.security</Private-Package>
+          <Export-Package>!*</Export-Package>
+          <Embed-Dependency>*;scope=compile|runtime;inline=false</Embed-Dependency>
+          <Embed-Transitive>true</Embed-Transitive>
+          <Import-Package>!java.*,com.atlassian.confluence.*;version="0",com.atlassian.sal.api.*;version="0",com.atlassian.beehive;version="0",com.atlassian.user;version="0",com.atlassian.core.bean;version="0",com.atlassian.renderer;version="0",jakarta.servlet.*;version="0",javax.imageio.*,javax.xml.*,org.w3c.dom,org.xml.sax.*, *;resolution:=optional</Import-Package>
+        </instructions></configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>
