@@ -25,7 +25,7 @@ jobs:
         run: mvn --batch-mode --no-transfer-progress -Djava.awt.headless=true clean verify
       - name: Upload plugin JAR, generated PDF and test reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: plugin-and-test-results
           if-no-files-found: warn
