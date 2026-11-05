@@ -25,6 +25,9 @@ Stand: 2026-11-05.
   wurde lokal erfolgreich ausgeführt.
 - GitHub Actions auf Commit `12b5d99`: Push- und Pull-Request-Verifikationsläufe
   beide **success** (Läufe `42079611247` und `42079630815`).
+- GitHub Actions auf dem aktuellen Commit `f8e3a07`: Push- und
+  Pull-Request-Verifikationsläufe beide **success** (Läufe `42080949939`
+  und `42080958897`).
 
 ## Nacharbeit auf demselben Branch
 
@@ -49,8 +52,7 @@ Spring-Injection, Web-Menüs, Host-XHTML-Makroverhalten, Persistenz nach echtem
 Neustart, effektive Rechte in realen Daten und Clusterpropagierung.
 Es wird kein Marketplace-/Data-Center-Kompatibilitätszertifikat behauptet.
 
-Für die Nacharbeit wurde noch kein GitHub-Actions-Lauf ausgelöst. Der
-Release-Workflow wurde noch nicht per Versionstag ausgeführt; ein real
+Der Release-Workflow wurde noch nicht per Versionstag ausgeführt; ein real
 angehängtes installierbares JAR ist daher nicht verifiziert. Das Repository
 enthält derzeit keinen Release. Es wurde kein Standardbranch direkt
 überschrieben und kein Pull Request automatisch gemergt.
