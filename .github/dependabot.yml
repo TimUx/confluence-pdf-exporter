@@ -1,0 +1,24 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      pdf-engine:
+        patterns: ['io.github.openhtmltopdf:*', 'org.apache.pdfbox:*']
+    ignore:
+      # Host API upgrades need an explicit Confluence compatibility decision.
+      - dependency-name: com.atlassian.confluence:*
+      - dependency-name: com.atlassian.sal:*
+      - dependency-name: com.atlassian.beehive:*
+      - dependency-name: com.atlassian.core:*
+      - dependency-name: com.atlassian.user:*
+      - dependency-name: com.atlassian.renderer:*
+      - dependency-name: jakarta.servlet:*
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

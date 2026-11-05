@@ -1,0 +1,36 @@
+name: Build and test
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Unit tests, PDF integration tests and bundle verification
+        run: mvn --batch-mode --no-transfer-progress -Djava.awt.headless=true clean verify
+      - name: Upload plugin JAR, generated PDF and test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-and-test-results
+          if-no-files-found: warn
+          path: |
+            confluence-plugin/target/confluence-pdf-exporter-*.jar
+            confluence-plugin/target/package-smoke.pdf
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
