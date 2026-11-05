@@ -154,9 +154,9 @@ public final class PdfServlet extends HttpServlet {
             boolean tree = "on".equals(req.getParameter("tree")) && !preview;
             boolean toc = preview || "on".equals(req.getParameter("toc"));
             boolean numbers = preview || "on".equals(req.getParameter("numbers"));
-            var snapshot = transactions.execute(() -> new ConfluenceDocumentSource(contents, children, attachmentService,
-                    conversion, permissions, attachments, user, config, req.getContextPath(), settings)
-                    .snapshot(root, tree, toc, numbers));
+            var source = new ConfluenceDocumentSource(contents, children, attachmentService,
+                    conversion, permissions, attachments, user, config, req.getContextPath(), settings);
+            var snapshot = transactions.execute(() -> source.snapshot(root, tree, toc, numbers));
             UUID id = jobs.submit(owner(user), snapshot.document().sections().stream().map(s -> s.id()).toList(),
                     snapshot.attachmentIds(), snapshot.document().fileName(),
                     () -> {
