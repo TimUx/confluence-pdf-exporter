@@ -11,14 +11,14 @@ public record PdfSettings(
         int schemaVersion, boolean enabled, boolean cover, boolean toc, boolean header,
         boolean footer, boolean pageNumbers, String paper, boolean landscape,
         int marginMm, int fontSizePt, double lineHeight, String textColor, String accentColor,
-        int titleSizePt, String footerText, String coverText, long coverLogoId, long headerLogoId,
+        int titleSizePt, String footerText, String coverText, String customCss, long coverLogoId, long headerLogoId,
         int logoWidthMm, int maxPages, int maxHtmlBytes, int maxImageBytes, int maxPdfBytes,
         int timeoutSeconds) {
     private static final Gson JSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Set<String> FIELDS = Set.of(
             "schemaVersion", "enabled", "cover", "toc", "header", "footer", "pageNumbers",
             "paper", "landscape", "marginMm", "fontSizePt", "lineHeight", "textColor", "accentColor",
-            "titleSizePt", "footerText", "coverText", "coverLogoId", "headerLogoId", "logoWidthMm",
+            "titleSizePt", "footerText", "coverText", "customCss", "coverLogoId", "headerLogoId", "logoWidthMm",
             "maxPages", "maxHtmlBytes", "maxImageBytes", "maxPdfBytes", "timeoutSeconds");
 
     public PdfSettings {
@@ -31,6 +31,8 @@ public record PdfSettings(
         range(titleSizePt, 18, 54, "Titelgröße");
         require(footerText != null && footerText.length() <= 300, "Fußtext: maximal 300 Zeichen.");
         require(coverText != null && coverText.length() <= 2000, "Deckblatttext: maximal 2000 Zeichen.");
+        require(customCss != null, "CSS darf nicht fehlen.");
+        SafeCss.validate(customCss);
         require(coverLogoId >= 0 && headerLogoId >= 0, "Ungültige Anhangs-ID.");
         range(logoWidthMm, 10, 70, "Logobreite");
         range(maxPages, 1, 200, "Quellseitenlimit");
@@ -42,7 +44,7 @@ public record PdfSettings(
 
     public static PdfSettings defaults() {
         return new PdfSettings(1, true, true, true, true, true, true, "A4", false,
-                20, 10, 1.4, "#202124", "#365870", 30, "", "", 0, 0,
+                20, 10, 1.4, "#202124", "#365870", 30, "", "", "", 0, 0,
                 35, 100, 4_000_000, 2_000_000, 16_000_000, 60);
     }
 

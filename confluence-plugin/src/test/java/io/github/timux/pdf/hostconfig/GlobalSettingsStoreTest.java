@@ -40,4 +40,30 @@ class GlobalSettingsStoreTest {
         second.save(second.previous(), second.read().revision());
         assertEquals(PdfSettings.defaults(), first.read().settings());
     }
+
+    @Test void logoAssetsShareGlobalPersistenceAndCanBeRemoved() throws Exception {
+        var values = new HashMap<String, Object>();
+        PluginSettings pluginSettings = mock(PluginSettings.class);
+        when(pluginSettings.get(anyString())).thenAnswer(i -> values.get(i.getArgument(0)));
+        when(pluginSettings.put(anyString(), any())).thenAnswer(i -> values.put(i.getArgument(0), i.getArgument(1)));
+        when(pluginSettings.remove(anyString())).thenAnswer(i -> values.remove(i.getArgument(0)));
+        PluginSettingsFactory factory = mock(PluginSettingsFactory.class);
+        when(factory.createGlobalSettings()).thenReturn(pluginSettings);
+        ClusterLock lock = mock(ClusterLock.class);
+        when(lock.tryLock(10, TimeUnit.SECONDS)).thenReturn(true);
+        ClusterLockService locks = mock(ClusterLockService.class);
+        when(locks.getLockForName(anyString())).thenReturn(lock);
+        TransactionTemplate transactions = new TransactionTemplate() {
+            @Override public <T> T execute(TransactionCallback<T> callback) { return callback.doInTransaction(); }
+        };
+        var first = new GlobalSettingsStore(factory, transactions, locks);
+        var second = new GlobalSettingsStore(factory, transactions, locks);
+        byte[] image = {1, 2, 3};
+        first.saveLogo("cover", image);
+        assertArrayEquals(image, second.logo("cover"));
+        second.removeLogo("cover");
+        assertNull(first.logo("cover"));
+        assertThrows(IllegalArgumentException.class, () -> first.saveLogo("unknown", image));
+        assertThrows(IllegalArgumentException.class, () -> first.saveLogo("header", new byte[512_001]));
+    }
 }

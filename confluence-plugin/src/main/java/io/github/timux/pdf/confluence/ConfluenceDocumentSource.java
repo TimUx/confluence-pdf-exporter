@@ -21,6 +21,7 @@ import io.github.timux.pdf.config.PdfSettings;
 import io.github.timux.pdf.export.DocumentCollector;
 import io.github.timux.pdf.export.ExportDocument;
 import io.github.timux.pdf.export.ExportException;
+import io.github.timux.pdf.hostconfig.LogoStore;
 import io.github.timux.pdf.template.HtmlComposer;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -42,6 +43,7 @@ public final class ConfluenceDocumentSource implements DocumentCollector.Source 
     private final ConfluenceUser user;
     private final PdfSettings settings;
     private final String contextPath;
+    private final LogoStore settingsStore;
     private final Map<Long, Content> approved = new HashMap<>();
     private final Map<Long, String> imageUris = new HashMap<>();
     private final ImageAssets assets;
@@ -49,10 +51,12 @@ public final class ConfluenceDocumentSource implements DocumentCollector.Source 
 
     public ConfluenceDocumentSource(ContentService contents, ChildContentService children, AttachmentService attachmentService,
                                     ContentBodyConversionService conversion, PermissionManager permissions,
-                                    AttachmentManager attachments, ConfluenceUser user, PdfSettings settings, String contextPath) {
+                                    AttachmentManager attachments, ConfluenceUser user, PdfSettings settings, String contextPath,
+                                    LogoStore settingsStore) {
         this.contents = contents; this.children = children; this.attachmentService = attachmentService;
         this.conversion = conversion; this.permissions = permissions; this.attachments = attachments;
         this.user = user; this.settings = settings; this.contextPath = contextPath;
+        this.settingsStore = settingsStore;
         assets = new ImageAssets(settings.maxImageBytes());
     }
 
@@ -146,6 +150,8 @@ public final class ConfluenceDocumentSource implements DocumentCollector.Source 
                     load(HostContent.attachment(attachmentService, attachments, settings.coverLogoId(), contextPath));
             String headerLogo = settings.headerLogoId() == 0 || !settings.header() ? null :
                     load(HostContent.attachment(attachmentService, attachments, settings.headerLogoId(), contextPath));
+            if (settings.coverLogoId() == 0 && settings.cover()) coverLogo = uploadedLogo("cover");
+            if (settings.headerLogoId() == 0 && settings.header()) headerLogo = uploadedLogo("header");
             var prepared = new HtmlComposer().compose(document, settings, toc, numbers, assets.snapshot(), coverLogo, headerLogo);
             var combined = new ArrayList<>(prepared.warnings());
             combined.addAll(warnings);
@@ -154,5 +160,10 @@ public final class ConfluenceDocumentSource implements DocumentCollector.Source 
         } catch (IOException ex) {
             throw new ExportException("Konfiguriertes Logo konnte nicht geladen werden.");
         }
+    }
+
+    private String uploadedLogo(String slot) throws IOException {
+        byte[] image = settingsStore.logo(slot);
+        return image == null ? null : assets.add(image);
     }
 }

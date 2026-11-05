@@ -1,6 +1,7 @@
 package io.github.timux.pdf.template;
 
 import io.github.timux.pdf.config.PdfSettings;
+import io.github.timux.pdf.config.SafeCss;
 import io.github.timux.pdf.export.ExportDocument;
 import io.github.timux.pdf.export.ExportException;
 import java.util.ArrayList;
@@ -32,7 +33,8 @@ public final class HtmlComposer {
         Document output = Document.createShell("");
         output.head().appendElement("meta").attr("charset", "UTF-8");
         output.title(document.title());
-        output.head().appendElement("style").text(css(settings, pageNumbers && settings.pageNumbers()));
+        output.head().appendElement("style").text(css(settings, pageNumbers && settings.pageNumbers())
+                + SafeCss.validate(settings.customCss()));
         Element body = output.body();
         Element front = settings.cover() ? body.appendElement("div").attr("class", "cover") : body;
         if (settings.header()) {

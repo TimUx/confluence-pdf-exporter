@@ -13,6 +13,8 @@ der PDF-Bibliotheken bzw. des gebauten Pakets, **nicht** eine Serverinstallation
 Abgedeckt:
 
 - Defaults, JSON-Roundtrip, Version/Felder, ungültige Farben und Limits.
+- CSS-Allowlist normalisiert erlaubte Regeln und lehnt externe URLs,
+  `@`-Regeln und nicht freigegebene Selektoren ab.
 - Tiefensuche, Reihenfolge, Tiefe, Einzel-/Teilbaumexport und Rechtefilter vor
   Metadaten-/Kindzugriff; Ressourcenüberschreitung und sichere Dateinamen.
 - HTML-Bereinigung, aktive Inhalte, Makro-Verzeichnisentfernung, Anker,
@@ -20,8 +22,8 @@ Abgedeckt:
 - PNG-/JPEG-Validierung, ablehnende Bildfälle und defensive Kopien.
 - Auftragseigentümer, Wartestatus, Fehlerredaktion, aktive Benutzerquote
   und Ablauf fertiger Ergebnisse.
-- SAL-Konfiguration mit gemeinsamem Mock-Speicher, Revisionskonflikt und
-  Wiederherstellung. **Kein Nachweis echter Datenbank-/Clusterkonsistenz.**
+- SAL-Konfiguration/Logos mit gemeinsamem Mock-Speicher, Revisionskonflikt,
+  Wiederherstellung und Löschung. **Kein Nachweis echter Datenbank-/Clusterkonsistenz.**
 - CSRF-Sitzungsbindung sowie Größen-/Duplikatkontrollen des POST-Parsers.
 - Echte PDFs mit PDFBox auswerten: Deckblatt, Text, Titelmetadaten, eingebettete
   Fonts/Bilder, vierseitiges Dokument, echte Verzeichniszielzahlen 3/4,

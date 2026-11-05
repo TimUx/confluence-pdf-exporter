@@ -29,8 +29,13 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.http.Part;
 
+@MultipartConfig(maxFileSize = 512_000, maxRequestSize = 540_672, fileSizeThreshold = 0)
 public final class PdfServlet extends HttpServlet {
     private static final Logger LOG = Logger.getLogger(PdfServlet.class.getName());
     private static final String[] FLAGS = {"enabled", "cover", "toc", "header", "footer", "pageNumbers", "landscape"};
@@ -42,6 +47,7 @@ public final class PdfServlet extends HttpServlet {
     private final AttachmentManager attachments;
     private final TransactionTemplate transactions;
     private final GlobalSettingsStore settings;
+    private final ClusterLockService clusterLocks;
     private final ExportJobs jobs = new ExportJobs();
     private final Semaphore snapshots = new Semaphore(2);
 
@@ -52,6 +58,7 @@ public final class PdfServlet extends HttpServlet {
         this.contents = contentService; this.children = childContentService; this.attachmentService = attachmentService;
         this.conversion = contentBodyConversionService; this.permissions = permissionManager; this.attachments = attachmentManager;
         this.transactions = transactionTemplate;
+        this.clusterLocks = clusterLockService;
         this.settings = new GlobalSettingsStore(pluginSettingsFactory, transactionTemplate, clusterLockService);
     }
 
@@ -73,11 +80,14 @@ public final class PdfServlet extends HttpServlet {
         String path = req.getPathInfo() == null ? "" : req.getPathInfo();
         try {
             if (post) {
-                req = BoundedForm.read(req);
+                boolean upload = "/logo".equals(path) && req.getContentType() != null
+                        && req.getContentType().toLowerCase().startsWith("multipart/form-data");
+                if (!upload) req = BoundedForm.read(req);
                 if (!Csrf.valid(req)) { res.sendError(403, "Formular abgelaufen. Bitte neu laden."); return; }
                 switch (path) {
                     case "/admin" -> saveSettings(req, res, user);
                     case "/export", "/preview" -> start(req, res, user, path.equals("/preview"));
+                    case "/logo" -> uploadLogo(req, res, user);
                     default -> res.sendError(404);
                 }
             } else {
@@ -145,13 +155,48 @@ public final class PdfServlet extends HttpServlet {
             boolean toc = preview || "on".equals(req.getParameter("toc"));
             boolean numbers = preview || "on".equals(req.getParameter("numbers"));
             var snapshot = transactions.execute(() -> new ConfluenceDocumentSource(contents, children, attachmentService,
-                    conversion, permissions, attachments, user, config, req.getContextPath()).snapshot(root, tree, toc, numbers));
+                    conversion, permissions, attachments, user, config, req.getContextPath(), settings)
+                    .snapshot(root, tree, toc, numbers));
             UUID id = jobs.submit(owner(user), snapshot.document().sections().stream().map(s -> s.id()).toList(),
                     snapshot.attachmentIds(), snapshot.document().fileName(),
-                    () -> new ExportJobs.Result(new PdfEngine().render(snapshot.prepared(), config), snapshot.prepared().warnings()));
+                    () -> {
+                        var lock = clusterLocks.getLockForName("io.github.timux.confluence.pdf.renderer");
+                        boolean acquired = false;
+                        try {
+                            acquired = lock.tryLock(config.timeoutSeconds(), TimeUnit.SECONDS);
+                            if (!acquired) throw new ExportException("Clusterweite PDF-Warteschlange ausgelastet.");
+                            return new ExportJobs.Result(new PdfEngine().render(snapshot.prepared(), config),
+                                    snapshot.prepared().warnings());
+                        } finally {
+                            if (acquired) lock.unlock();
+                        }
+                    });
             res.setStatus(303);
             res.setHeader("Location", base(req) + "/status?id=" + id);
         } finally { snapshots.release(); }
+    }
+
+    private void uploadLogo(HttpServletRequest req, HttpServletResponse res, ConfluenceUser user)
+            throws IOException, ServletException {
+        admin(user);
+        String slot = req.getParameter("slot");
+        if (!"cover".equals(slot) && !"header".equals(slot))
+            throw new IllegalArgumentException("Ungültiger Logo-Bereich.");
+        Part part = req.getPart("logo");
+        if (part == null || part.getSize() < 1 || part.getSize() > 512_000)
+            throw new IllegalArgumentException("Logo muss zwischen 1 Byte und 500 KiB groß sein.");
+        byte[] uploaded;
+        try (var stream = part.getInputStream()) {
+            uploaded = stream.readNBytes(512_001);
+        }
+        if (uploaded.length > 512_000) throw new IllegalArgumentException("Logo überschreitet das Uploadlimit.");
+        var imageAssets = new io.github.timux.pdf.assets.ImageAssets(
+                Math.min(512_000, settings.read().settings().maxImageBytes()));
+        String imageUri = imageAssets.add(uploaded);
+        byte[] normalized = imageAssets.get(imageUri);
+        settings.saveLogo(slot, normalized);
+        res.setStatus(303);
+        res.setHeader("Location", base(req) + "/admin");
     }
 
     private UUID jobId(HttpServletRequest req) {
@@ -226,9 +271,10 @@ public final class PdfServlet extends HttpServlet {
     private PdfSettings postedSettings(HttpServletRequest req) {
         JsonObject json = JsonParser.parseString(settings.read().settings().toJson()).getAsJsonObject();
         for (String flag : FLAGS) json.addProperty(flag, "on".equals(req.getParameter(flag)));
-        for (String field : new String[]{"paper", "textColor", "accentColor", "footerText", "coverText"}) {
+        for (String field : new String[]{"paper", "textColor", "accentColor", "footerText", "coverText", "customCss"}) {
             String value = req.getParameter(field);
-            if (value == null || value.length() > 2000) throw new IllegalArgumentException("Fehlendes oder zu langes Feld: " + field);
+            int limit = "customCss".equals(field) ? 8_000 : 2_000;
+            if (value == null || value.length() > limit) throw new IllegalArgumentException("Fehlendes oder zu langes Feld: " + field);
             json.addProperty(field, value);
         }
         for (String field : new String[]{"marginMm", "fontSizePt", "titleSizePt", "logoWidthMm", "maxPages",
@@ -263,12 +309,16 @@ public final class PdfServlet extends HttpServlet {
         field(form, "accentColor", "Überschriften- und Linienfarbe (#RRGGBB)", s.accentColor());
         field(form, "coverText", "Deckblatttext", s.coverText());
         field(form, "footerText", "Fußzeilentext", s.footerText());
-        form.append("<h2>Logos</h2><p>PNG/JPEG zuerst als Confluence-Anhang hochladen. ")
-                .append("Anhangs-ID eintragen (0 = kein Logo). Jeder Export prüft die Anhangsberechtigung.</p>");
+        form.append("<p><label for=\"customCss\">Erweitertes CSS (freigegebene Elemente/Eigenschaften, max. 8 KiB)</label><br>")
+                .append("<textarea id=\"customCss\" name=\"customCss\" rows=\"10\" maxlength=\"8000\">")
+                .append(escape(s.customCss())).append("</textarea></p>");
+        form.append("<h2>Logos</h2><p>Ein Logo kann als PNG/JPEG hochgeladen oder als Confluence-Anhang verwendet werden. ")
+                .append("Für Anhänge die ID eintragen (0 = hochgeladenes Logo). Jeder Export prüft die Anhangsberechtigung.</p>");
         field(form, "coverLogoId", "Deckblattlogo: Anhangs-ID", s.coverLogoId());
         field(form, "headerLogoId", "Kopfzeilenlogo: Anhangs-ID", s.headerLogoId());
         field(form, "logoWidthMm", "Deckblattlogo-Breite (mm)", s.logoWidthMm());
-        form.append("<h2>Ressourcenlimits</h2><p>Parallelität je Knoten: zwei Renderer, zwei Warteschlangenplätze; ein aktiver Auftrag pro Benutzer.</p>");
+        form.append("<p>Ein hochgeladenes Logo wird verwendet, wenn für den jeweiligen Platz keine Anhangs-ID gesetzt ist.</p>");
+        form.append("<h2>Ressourcenlimits</h2><p>Renderer: eine clusterweite Sperre; pro Node zwei Renderer-Slots und zwei Warteschlangenplätze; ein aktiver Auftrag pro Benutzer und Node.</p>");
         field(form, "maxPages", "Maximale Quellseiten (1–200)", s.maxPages());
         field(form, "maxHtmlBytes", "Maximale HTML-Bytes", s.maxHtmlBytes());
         field(form, "maxImageBytes", "Maximale Bytes je Bild", s.maxImageBytes());
@@ -281,14 +331,24 @@ public final class PdfServlet extends HttpServlet {
         field(form, "pageId", "Testseiten-ID", "");
         form.append("<button class=\"aui-button\" formaction=\"").append(action)
                 .append("/preview\">Vorschau erzeugen</button></form>")
-                .append("<h2>Konfiguration übertragen</h2><p><a href=\"").append(action)
+                .append("<h2>Logos hochladen</h2>");
+        for (String slot : new String[]{"cover", "header"}) {
+            String label = "cover".equals(slot) ? "Deckblattlogo" : "Kopfzeilenlogo";
+            form.append("<form method=\"post\" enctype=\"multipart/form-data\" action=\"")
+                    .append(action).append("/logo\">").append(hidden(req))
+                    .append("<input type=\"hidden\" name=\"slot\" value=\"").append(slot).append("\">")
+                    .append("<label>").append(label).append(" hochladen (PNG/JPEG, max. 500 KiB und Bildlimit) ")
+                    .append("<input type=\"file\" name=\"logo\" accept=\"image/png,image/jpeg\" required></label> ")
+                    .append("<button class=\"aui-button\">Logo speichern</button></form>");
+        }
+        form.append("<h2>Konfiguration übertragen</h2><p><a href=\"").append(action)
                 .append("/configuration\">JSON exportieren</a></p><form method=\"post\" action=\"")
                 .append(action).append("/admin\">").append(hidden(req))
                 .append("<input type=\"hidden\" name=\"revision\" value=\"").append(snapshot.revision()).append("\">")
                 .append("<label for=\"json\">Vollständige Konfiguration (maximal 16 KiB)</label>")
                 .append("<textarea id=\"json\" name=\"json\" rows=\"18\" maxlength=\"16384\">")
                 .append(escape(s.toJson())).append("</textarea><button class=\"aui-button\" name=\"action\" value=\"import\">JSON importieren</button></form>")
-                .append("<p>Freies HTML/CSS ist aus Sicherheitsgründen nicht freigeschaltet. ")
+                .append("<p>CSS ist auf freigegebene Selektoren und Eigenschaften beschränkt; freies HTML und externe Ressourcen sind nicht freigeschaltet. ")
                 .append("Installation und Clusterbetrieb müssen vor Produktivnutzung in einer Testinstanz abgenommen werden.</p>");
         page(res, 200, "Universal PDF Exporter", form.toString(), true);
     }

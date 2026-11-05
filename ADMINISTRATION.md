@@ -24,16 +24,22 @@ Deaktivierung einschalten.
 
 ## Logos ohne Neubuild ersetzen
 
-1. Gewünschtes PNG/JPEG regulär auf einer Confluence-Seite als Anhang hochladen.
-2. Die numerische **Anhangs-ID**, nicht die Seiten-ID, ermitteln.
-3. ID für Deckblatt und/oder Kopfzeile eintragen, speichern und Vorschau erzeugen.
-4. Mit einem normalen Benutzer testen, der die Logo-Anhangsseite lesen darf.
+1. In der Administration PNG/JPEG im Formular „Logos hochladen“ direkt für
+   Deckblatt oder Kopfzeile hochladen (maximal 500 KiB). Das Bild wird
+   dekodiert, auf Rasterdaten begrenzt und ohne Originalmetadaten neu kodiert.
+2. Alternativ ein PNG/JPEG regulär auf einer Confluence-Seite als Anhang
+   hochladen und die numerische **Anhangs-ID** eintragen.
+3. Für das verwendete Upload-Logo muss die jeweilige Anhangs-ID auf `0` stehen;
+   anschließend speichern und Vorschau erzeugen.
+4. Bei regulären Confluence-Anhängen mit einem normalen Benutzer testen, der
+   die Logo-Anhangsseite lesen darf.
 
-`0` deaktiviert ein Logo. Beide Logos sind unabhängig austauschbar. Jeder
-Export prüft Anhang und Container; die administrative Auswahl gewährt anderen
-Benutzern **keine** zusätzlichen Leserechte. Geschützte globale Logos können
-einen Export verhindern. Keine externen Logo-URLs, SVG-Dateien oder lokalen
-Dateipfade. Es gibt keinen separaten Uploadspeicher des Plugins.
+Die IDs `0` aktivieren das hochgeladene Logo, sofern vorhanden; ohne Upload
+bleibt der Platz leer. Beide Logos sind unabhängig austauschbar. Uploads werden
+in den globalen Confluence-Plugin-Einstellungen gespeichert. Bei regulären
+Confluence-Anhängen prüft jeder Export Anhang und Container; die administrative
+Auswahl gewährt anderen Benutzern **keine** zusätzlichen Leserechte.
+Keine externen Logo-URLs, SVG-Dateien oder lokalen Dateipfade.
 
 ## Vorschau und Konfigurationstransfer
 
@@ -61,15 +67,18 @@ HTML-/Velocity-Ausdrücke. Deckblatt, Kopfzeile, Metadaten und Dateiname werden
 automatisch mit dem Startseitentitel befüllt.
 
 Die Schrift wird eingebettet und intern als „Export Sans“ registriert.
-Freie HTML-/CSS-Eingabe, alternative Schriftfamilien, Hintergrundbilder,
-frei positionierbare Designbalken sowie einzelne H1–H6-/Tabellenstil-Editoren
-sind derzeit **nicht implementiert**. Dieser eingeschränkte Funktionsstand
-vermeidet unkontrollierte Ressourcenreferenzen und Layout-Injektion.
+Erweitertes CSS ist auf eine dokumentierte Selektor-/Eigenschafts-Allowlist
+und begrenzte Farb-/Maßwerte beschränkt; `url()`, `@`-Regeln, unbekannte
+Selektoren und freie HTML-Ausgabe werden zurückgewiesen. Der CSS-Editor kann
+Überschriften, Tabellen, Text, Listen, Codeblöcke, Deckblatt, Kopf-/Fußzeile
+und Inhaltsverzeichnis gestalten. Alternative Schriftfamilien,
+Hintergrundbilder und ein freier visueller Designer bleiben offen.
 
 ## Ressourcenplanung
 
-Pro Knoten: zwei Renderer, zwei Warteschlangenplätze, höchstens acht gespeicherte
-Aufträge, ein aktiver Auftrag je Benutzer. Default: 100 Quellseiten, 4 MB HTML,
+Clusterweit darf eine PDF-Renderaufgabe gleichzeitig laufen; pro Knoten bestehen
+zwei Renderer-Worker-Slots und zwei Warteschlangenplätze, höchstens acht
+gespeicherte Aufträge und ein aktiver Auftrag je Benutzer. Default: 100 Quellseiten, 4 MB HTML,
 2 MB je Bild, 16 MB PDF, 60 Sekunden kooperatives Zeitlimit. Zusätzlich:
 64 verschiedene Bilder, insgesamt 16 MB re-encodierte Bilder, 12 Millionen
 Pixel je Bild, Tiefe 32, 5000 Verzeichniseinträge und 1000 erzeugte PDF-Seiten.
@@ -78,5 +87,6 @@ Maximal konfigurierbar: 200 Quellseiten, 8 MB HTML, 4 MB je Bild, 32 MB PDF,
 
 Acht fertige PDFs können allein bis zu 256 MB RAM belegen; Layout,
 Schrift-/Bilddekodierung und aktive Snapshots benötigen zusätzlichen Heap.
-Grenzen vor breiter Freigabe mit realen Dokumenten prüfen. Keine clusterweite
-Parallelitätsgrenze und kein harter Timeout: siehe [SICHERHEIT.md](SICHERHEIT.md).
+Grenzen vor breiter Freigabe mit realen Dokumenten prüfen. Keine replizierten
+Auftragsdaten, Failover-Wiederaufnahme oder harte Timeout-Garantie: siehe
+[SICHERHEIT.md](SICHERHEIT.md).

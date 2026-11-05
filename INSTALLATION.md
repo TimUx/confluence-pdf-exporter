@@ -55,6 +55,12 @@ das Paket-Smoke-PDF sowie Surefire-/Failsafe-Berichte als Workflow-Artefakt.
 3. JAR, Projektquellen, OpenHTMLtoPDF-Quell-JARs und SHA-256-Prüfsummen sammeln.
 4. GitHub-**Entwurfsrelease** mit den Dateien erstellen.
 
+Der Workflow kontrolliert, dass das JAR vorhanden ist und den
+`atlassian-plugin.xml`-Descriptor enthält. Nach dem Release lädt er das
+JAR-Asset erneut herunter und vergleicht es bytegenau mit dem gebauten Bundle.
+Ein realer Release wurde bisher noch nicht erzeugt; der Workflow-Nachweis
+bleibt bis zu einem Versionstag offen.
+
 Das Projektquellarchiv enthält die Original-POMs vom Tag; die Release-Version
 wird reproduzierbar im Build gesetzt. Vor Veröffentlichung müssen
 Installationsabnahme, Lizenzen und Release Notes geprüft werden. Der Workflow

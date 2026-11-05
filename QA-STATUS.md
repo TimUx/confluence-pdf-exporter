@@ -11,10 +11,10 @@ Stand: 2026-11-05.
 - Der Quellcode wird gegen diese echten API-Artefakte kompiliert, nicht gegen
   selbst geschriebene Confluence-API-Stubs.
 - Maven erzeugt ein P2-/OSGi-Plugin-JAR mit eingebetteten PDF-Abhängigkeiten.
-- Lokaler Abschlusslauf mit JDK 21 / Maven 3.9.11:
+- Lokaler Abschlusslauf nach Nacharbeit mit JDK 21 / Maven 3.9.11:
   `mvn -B -ntp -Djava.awt.headless=true clean verify` — **BUILD SUCCESS**,
-  **31 Tests**, keine Fehler, Fehlschläge oder übersprungenen Tests:
-  18 Kern-Unit-Tests, 5 PDF-Integrationstests, 7 Plugin-Vertragstests und
+  **34 Tests**, keine Fehler, Fehlschläge oder übersprungenen Tests:
+  20 Kern-Unit-Tests, 5 PDF-Integrationstests, 8 Plugin-Vertragstests und
   1 isolierter Pakettest.
 - Erzeugtes Installationsartefakt:
   `confluence-plugin/target/confluence-pdf-exporter-1.0.0-SNAPSHOT.jar`.
@@ -23,6 +23,23 @@ Stand: 2026-11-05.
 - Workflow-/Dependabot-YAML wurde lokal syntaktisch geparst.
   Der Quellartefakt-Sammelschritt für die OpenHTMLtoPDF-Releasequellen
   wurde lokal erfolgreich ausgeführt.
+- GitHub Actions auf Commit `12b5d99`: Push- und Pull-Request-Verifikationsläufe
+  beide **success** (Läufe `42079611247` und `42079630815`).
+
+## Nacharbeit auf demselben Branch
+
+Nach dem Actions-Lauf wurden implementiert:
+
+- Erweiterte CSS-Eingabe mit Allowlist für Selektoren/Eigenschaften und
+  eingeschränkten Farb-/Maßwerten; aktive CSS-Ressourcen/Regeln werden
+  zurückgewiesen.
+- Upload unabhängiger Deckblatt-/Kopfzeilenlogos als PNG/JPEG bis maximal
+  500 KiB und aktuelles Bildlimit. Dekodierung/Re-Encoding entfernt
+  Originalmetadaten; die normalisierten Assets werden in globalen
+  Plugin-Einstellungen abgelegt.
+- Eine Cluster-Sperre serialisiert die PDF-Renderphase auf einen aktiven
+  Worker im Cluster. Auftragsstatus und PDF-Ergebnisse bleiben knotengebunden.
+- Der lokale Maven-Abschlusslauf nach diesen Änderungen ist oben dokumentiert.
 
 ## Nicht belegt / Freigabeblocker
 
@@ -32,18 +49,20 @@ Spring-Injection, Web-Menüs, Host-XHTML-Makroverhalten, Persistenz nach echtem
 Neustart, effektive Rechte in realen Daten und Clusterpropagierung.
 Es wird kein Marketplace-/Data-Center-Kompatibilitätszertifikat behauptet.
 
-Die Workflows wurden implementiert; ein GitHub-gehosteter Lauf oder Release
-wurde aus dieser Umgebung nicht ausgelöst. Es wurde kein Standardbranch
-direkt überschrieben und kein Pull Request automatisch gemergt.
+Für die Nacharbeit wurde noch kein GitHub-Actions-Lauf ausgelöst. Der
+Release-Workflow wurde noch nicht per Versionstag ausgeführt; ein real
+angehängtes installierbares JAR ist daher nicht verifiziert. Das Repository
+enthält derzeit keinen Release. Es wurde kein Standardbranch direkt
+überschrieben und kein Pull Request automatisch gemergt.
 
 ## Noch nicht implementierte Spezifikationsbereiche
 
-- Freier HTML-/CSS-Editor und frei gestaltbare Template-Platzhalter.
-- Vollständiger Layoutdesigner für alle Überschriften-/Tabellen-/Logo-/Footerdetails,
-  Hintergrundbilder, Designbalken, eigene Schriftfamilien/Uploads.
-- Eigener Datei-Upload im Plugin (statt regulärer Confluence-Anhänge).
+- Freier HTML-Editor und frei gestaltbare Template-Platzhalter.
+- Vollständiger visueller Layoutdesigner für alle Header-/Footerdetails,
+  Hintergrundbilder, Designbalken und eigene Schriftfamilien/Uploads.
 - Clusterweite Auftrags-/PDF-Replikation, Wiederaufnahme nach Node-Ausfall,
-  verteilte Parallelitätsquoten und clusterweite Deduplizierung.
+  globale Benutzer-Deduplizierung und verteilte Queue-Quote. Implementiert ist
+  nur die clusterweite Serialisierung der PDF-Renderphase.
 - Harte, mitten im Layout garantierte Laufzeit-/Speicherbegrenzung.
 - Rein asynchrone Host-Seitenerfassung; sie erfolgt aktuell im Requestkontext.
 - Vollständiges revisionssicheres personenbezogenes Audit-Journal.

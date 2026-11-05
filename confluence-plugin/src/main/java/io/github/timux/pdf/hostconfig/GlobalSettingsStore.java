@@ -4,6 +4,7 @@ import com.atlassian.beehive.ClusterLockService;
 import com.atlassian.sal.api.pluginsettings.PluginSettingsFactory;
 import com.atlassian.sal.api.transaction.TransactionTemplate;
 import io.github.timux.pdf.config.PdfSettings;
+import java.util.Base64;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -11,8 +12,10 @@ import java.util.HexFormat;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-public final class GlobalSettingsStore {
+public final class GlobalSettingsStore implements LogoStore {
     private static final String KEY = "io.github.timux.confluence.pdf.settings.v1";
+    private static final String LOGO_PREFIX = KEY + ".logo.";
+    private static final int MAX_LOGO_BYTES = 512_000;
     private static final Logger LOG = Logger.getLogger(GlobalSettingsStore.class.getName());
     private final PluginSettingsFactory factory;
     private final TransactionTemplate transactions;
@@ -64,6 +67,68 @@ public final class GlobalSettingsStore {
             if (!(value instanceof String text)) throw new IllegalArgumentException("Keine vorherige Konfiguration.");
             return PdfSettings.fromJson(text);
         });
+    }
+
+    @Override public byte[] logo(String slot) {
+        String key = logoKey(slot);
+        return transactions.execute(() -> {
+            Object stored = factory.createGlobalSettings().get(key);
+            if (stored == null) return null;
+            if (!(stored instanceof String encoded) || encoded.length() > MAX_LOGO_BYTES * 2)
+                throw new IllegalStateException("Gespeichertes Logo ist ungültig.");
+            try {
+                byte[] bytes = Base64.getDecoder().decode(encoded);
+                if (bytes.length > MAX_LOGO_BYTES) throw new IllegalStateException("Gespeichertes Logo ist zu groß.");
+                return bytes;
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalStateException("Gespeichertes Logo ist ungültig.", ex);
+            }
+        });
+    }
+
+    public void saveLogo(String slot, byte[] bytes) {
+        if (bytes == null || bytes.length == 0 || bytes.length > MAX_LOGO_BYTES)
+            throw new IllegalArgumentException("Logo muss zwischen 1 Byte und 500 KiB groß sein.");
+        var lock = locks.getLockForName(LOGO_PREFIX + slot);
+        boolean acquired = false;
+        try {
+            acquired = lock.tryLock(10, TimeUnit.SECONDS);
+            if (!acquired) throw new IllegalArgumentException("Logo wird gerade geändert.");
+            String encoded = Base64.getEncoder().encodeToString(bytes);
+            transactions.execute(() -> {
+                factory.createGlobalSettings().put(logoKey(slot), encoded);
+                return null;
+            });
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalArgumentException("Logo-Upload unterbrochen.");
+        } finally {
+            if (acquired) lock.unlock();
+        }
+    }
+
+    public void removeLogo(String slot) {
+        var lock = locks.getLockForName(LOGO_PREFIX + slot);
+        boolean acquired = false;
+        try {
+            acquired = lock.tryLock(10, TimeUnit.SECONDS);
+            if (!acquired) throw new IllegalArgumentException("Logo wird gerade geändert.");
+            transactions.execute(() -> {
+                factory.createGlobalSettings().remove(logoKey(slot));
+                return null;
+            });
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalArgumentException("Logo-Änderung unterbrochen.");
+        } finally {
+            if (acquired) lock.unlock();
+        }
+    }
+
+    private static String logoKey(String slot) {
+        if (!"cover".equals(slot) && !"header".equals(slot))
+            throw new IllegalArgumentException("Ungültiger Logo-Bereich.");
+        return LOGO_PREFIX + slot;
     }
 
     static String digest(String text) {

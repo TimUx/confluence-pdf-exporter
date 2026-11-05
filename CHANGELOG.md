@@ -8,6 +8,10 @@
   Seiten-/Teilbaumexport und berechtigtes Attachment-Rendering.
 - Deutsches Admin-/Exportformular, JSON-Verwaltung, Logo-Anhangsauswahl,
   ungespeicherte Vorschau und begrenzte asynchrone PDF-Aufträge.
+- Sichere, begrenzte CSS-Regeln, direkte PNG-/JPEG-Logo-Uploads mit
+  globaler PluginSettings-Speicherung und clusterweite Renderer-Sperre.
+- Releaseworkflow prüft das erzeugte P2-JAR vor Upload und vergleicht nach
+  dem Draft-Release das heruntergeladene Attachment bytegenau mit dem Build.
 - Sicherheitskontrollen, PDF-/Pakettests, GitHub Actions und Dependabot.
 - Build-/Installationsanleitung und expliziter Status aller nicht real
   validierten bzw. noch nicht implementierten Funktionen.

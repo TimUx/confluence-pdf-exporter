@@ -32,7 +32,7 @@ class ConfluenceDocumentSourceTest {
         when(finder.withId(ContentId.of(1))).thenReturn(single);
         when(single.fetch()).thenReturn(Optional.empty());
         var source = new ConfluenceDocumentSource(service, null, null, null, null, null,
-                null, PdfSettings.defaults(), "");
+                null, PdfSettings.defaults(), "", mock(io.github.timux.pdf.hostconfig.LogoStore.class));
         assertFalse(source.canRead(1));
         assertThrows(ExportException.class, () -> source.title(1));
         assertThrows(ExportException.class, () -> source.children(1));
@@ -69,7 +69,7 @@ class ConfluenceDocumentSourceTest {
         var conversion = mock(ContentBodyConversionService.class);
         when(conversion.convertBody(parent, ContentRepresentation.EXPORT_VIEW)).thenReturn(converted);
         var source = new ConfluenceDocumentSource(service, children, mock(AttachmentService.class), conversion,
-                null, null, null, PdfSettings.defaults(), "");
+                null, null, null, PdfSettings.defaults(), "", mock(io.github.timux.pdf.hostconfig.LogoStore.class));
         assertTrue(source.canRead(1));
         assertEquals(List.of(3L, 2L), source.children(1));
         assertTrue(source.html(1).contains("Export view"));

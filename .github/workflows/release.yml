@@ -33,7 +33,10 @@ jobs:
       - name: Prepare JAR, sources and checksums
         run: |
           mkdir -p release
-          cp "confluence-plugin/target/confluence-pdf-exporter-$VERSION.jar" release/
+          BUNDLE="confluence-plugin/target/confluence-pdf-exporter-$VERSION.jar"
+          test -s "$BUNDLE"
+          jar tf "$BUNDLE" | grep -Fxq 'atlassian-plugin.xml'
+          cp "$BUNDLE" release/
           git archive --format=zip --output="release/plugin-sources-$VERSION.zip" HEAD
           mvn -B -ntp -pl renderer-core org.apache.maven.plugins:maven-dependency-plugin:3.9.0:copy-dependencies \
             -Dclassifier=sources -DincludeGroupIds=io.github.openhtmltopdf \
@@ -57,3 +60,14 @@ jobs:
           gh release create "$TAG" release/*.jar release/*.zip release/SHA256SUMS \
             --verify-tag --draft --title "Universal PDF Exporter $VERSION" \
             --notes "Built and automatically tested with Java 21 against Confluence 10.2.19 APIs. Real Confluence installation and cluster validation remain required; see QA-STATUS.md and INSTALLATION.md. The plugin-sources archive preserves the tag's source POM version; the build sets it to the tag version."
+      - name: Verify the installable bundle is attached unchanged
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          BUNDLE_NAME="confluence-pdf-exporter-$VERSION.jar"
+          attached="$(gh release view "$TAG" --json assets --jq ".assets | any(.name == \"$BUNDLE_NAME\" and .size > 0)")"
+          test "$attached" = true
+          mkdir downloaded
+          gh release download "$TAG" --pattern "$BUNDLE_NAME" --dir downloaded
+          cmp "release/$BUNDLE_NAME" "downloaded/$BUNDLE_NAME"

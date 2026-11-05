@@ -21,4 +21,12 @@ class PdfSettingsTest {
         assertThrows(IllegalArgumentException.class, () -> PdfSettings.fromJson(json.replace("\"lineHeight\": 1.4", "\"lineHeight\": 0")));
         assertThrows(IllegalArgumentException.class, () -> PdfSettings.fromJson(" ".repeat(17000)));
     }
+
+    @Test void acceptsOnlyAllowlistedTemplateCss() {
+        assertEquals("h1{color:#123456;font-size:22pt;}",
+                SafeCss.validate("h1 { color: #123456; font-size: 22pt; }"));
+        assertThrows(IllegalArgumentException.class, () -> SafeCss.validate("body{background:url(file:/etc/passwd)}"));
+        assertThrows(IllegalArgumentException.class, () -> SafeCss.validate("body{color:red} @import url(https://example.test/x);"));
+        assertThrows(IllegalArgumentException.class, () -> SafeCss.validate("script{color:red}"));
+    }
 }

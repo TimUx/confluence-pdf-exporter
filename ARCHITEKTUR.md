@@ -5,7 +5,8 @@
 `renderer-core` hat keine Atlassian-Abhängigkeiten:
 
 - `config.PdfSettings`: unveränderliches Konfigurationsschema 1, Defaults,
-  JSON-Serialisierung und feldweise Wertevalidierung.
+  JSON-Serialisierung und feldweise Wertevalidierung; `SafeCss` validiert
+  optionale Layoutregeln gegen eine enge Eigenschafts-/Selektor-Allowlist.
 - `export.DocumentCollector`: iterative Tiefensuche, Berechtigungsfilter,
   Quellseiten-/Byte-/Hierarchielimits; verweigerte Knoten werden nicht traversiert.
 - `assets.ImageAssets`: ausschließlich PNG/JPEG, Dimensionsprüfung vor dem
@@ -28,7 +29,8 @@
   öffentliche ContentBodyConversionService-Konvertierung nach `EXPORT_VIEW`,
   berechtigte AttachmentManager-Zugriffe und Überführung in den neutralen Kern.
 - `GlobalSettingsStore`: SAL PluginSettingsFactory, SAL TransactionTemplate,
-  ClusterLockService, SHA-256-Revision und eine vorherige Konfiguration.
+  ClusterLockService, SHA-256-Revision, vorherige Konfiguration und begrenzte
+  Base64-kodierte PNG/JPEG-Logo-Assets in globalen Plugin-Einstellungen.
 - `PdfServlet`: Formulare, Administration, Vorschau, Aufträge und Download.
 - `Csrf`/`BoundedForm`: sitzungsgebundener Token und begrenztes POST-Parsing.
 
@@ -42,7 +44,8 @@
 4. Statische Host-Makroausgabe sanitieren; nicht freigegebene Ressourcen
    entfernen. Keine ORM-Objekte oder Benutzer-ThreadLocals an Worker übergeben.
 5. Unveränderliche Exportdaten in eine begrenzte knotengebundene Queue geben.
-6. PDF im Worker rendern. CSS `target-counter()` verwendet tatsächliche
+6. PDF im Worker rendern. Eine Cluster-Sperre serialisiert die PDF-Renderer
+   über Knoten hinweg. CSS `target-counter()` verwendet tatsächliche
    Layoutziele; keine geschätzten Seitenzahlen und keine zusätzliche
    PDFBox-Paginierungsrunde. Die internen Linkziele werden mit PDFBox getestet.
 7. Status/Download nur für den Auftraggeber; aktuelle Seiten- und
@@ -58,6 +61,8 @@ ist auf einer Mehrknoteninstanz noch zu prüfen.
 
 PDFs bleiben bewusst im RAM des Ursprungsknotens. Sie werden weder in
 öffentliche Anhänge noch auf einen lokalen/shared Dateipfad geschrieben.
+Die Cluster-Sperre begrenzt gleichzeitige Layout-/PDF-Erzeugung auf einen
+aktiven Worker im Cluster, repliziert aber weder Queue noch Ergebnisdateien.
 Nach zehn Minuten ab Auftragserstellung entfernt ein Minutentakt die
 abgeschlossenen/fehlgeschlagenen Aufträge. Laufende Aufträge werden nicht
 während des Renderns entfernt. Ein Auftrag wird nur einmal an den lokalen

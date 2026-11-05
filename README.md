@@ -7,7 +7,8 @@ es gibt keine mitgelieferten Kundenlogos, kundenspezifischen Inhalte oder
 vorkonfigurierten Anhänge.
 
 > **Status:** Aus einem Repository mit ausschließlich README neu implementiert.
-> `mvn clean verify` läuft lokal erfolgreich: 31 Tests ohne Fehler.
+> Der aktuelle lokale Abschlusslauf `mvn clean verify` auf Java 21 ist
+> erfolgreich: 34 Tests ohne Fehler.
 > **Keine echte Confluence-Instanz stand zur Verfügung.** Installation,
 > Spring-/OSGi-Serviceverdrahtung, Menüs und Clusterbetrieb sind deshalb noch
 > nicht abgenommen. Dies ist ein testbarer erster Funktionsstand, keine
@@ -25,12 +26,13 @@ vorkonfigurierten Anhänge.
   Punktlinien und PDF-internen Links; mehrseitiges Verzeichnis getestet.
 - Text, Listen, Tabellen, Code, Zitate und statische Confluence-Makroausgabe;
   vorhandene Inhaltsverzeichnis-Makroausgabe wird aus der Exportkopie entfernt.
-- PNG-/JPEG-Anhänge und zwei unabhängig konfigurierbare Anhangslogos.
+- PNG-/JPEG-Anhänge sowie zwei unabhängig hochladbare, global gespeicherte Logos.
   Keine HTTP-/Datei-URL-Auflösung durch den PDF-Renderer.
 - Deutsche Administrations-/Exportformulare, JSON-Import/-Export, Standardwerte,
   Wiederherstellung der vorherigen Konfiguration und ungespeicherte PDF-Vorschau.
 - Datenbankgestützte SAL-Konfiguration ohne eigenen Knotencache,
-  Cluster-Schreibsperre und optimistische Revisionserkennung.
+  Cluster-Schreibsperre und optimistische Revisionserkennung. Logo-Uploads
+  verwenden ebenfalls die globale PluginSettings-Speicherung.
 - Asynchrone PDF-Renderer mit begrenzter Warteschlange, benutzergebundenem
   Auftragsstatus und erneutem Berechtigungscheck bei jedem Download.
 - Ein einzelnes Plugin-JAR mit eingebetteten, nicht exportierten Laufzeitbibliotheken.
@@ -68,21 +70,24 @@ aus den tatsächlich im JAR enthaltenen Bibliotheken.
 Für einen Cluster ist **Session-Affinität zum ursprünglichen Knoten erforderlich**.
 Aufträge/PDFs bleiben im Knotenspeicher und werden nicht repliziert. Sie gehen
 bei Neustart oder Knotenausfall verloren; ein Export muss dann neu gestartet
-werden. Ein Failover-/Wiederaufnahmeverfahren ist nicht implementiert.
+werden. Ein clusterweiter Lock lässt jeweils nur einen PDF-Renderer gleichzeitig
+laufen. Ein Failover-/Wiederaufnahmeverfahren und ein global replizierter
+Auftragsstatus sind nicht implementiert.
 
 ## Bewusste Grenzen
 
-Die aktuelle Umsetzung enthält **keinen freien HTML-/CSS-Editor**, keine
-Schriftarten-Uploads, keinen eigenen Logo-Dateiupload und keine vollständige
-Layout-Designeroberfläche. Logos werden über reguläre Confluence-Anhänge
-ausgetauscht. Interaktive Makros, SVG, externe Bilder und eigene Seitenskripte
-werden nicht ausgeführt. Fehlende Bilder/interaktive Inhalte erhalten sichtbare
-Ersatzhinweise und Auftragswarnungen.
+Die CSS-Eingabe erlaubt nur explizit freigegebene Selektoren/Eigenschaften;
+freies HTML, URL-Werte, externe Ressourcen und CSS-Regeln mit aktiven
+Funktionen werden abgewiesen. Logos können als PNG/JPEG bis 500 KiB im
+Confluence-Plugin-Speicher hochgeladen oder aus berechtigten Anhängen geladen
+werden. Schriftarten-Uploads und eine vollständige visuelle Layoutdesigner-
+Oberfläche bleiben offen. Interaktive Makros, SVG, externe Bilder und eigene
+Seitenskripte werden nicht ausgeführt. Fehlende Inhalte erhalten Ersatzhinweise.
 
 Seitenerfassung und Confluence-Makroausgabe laufen begrenzt im Request/Transaktionskontext;
 nur die nachfolgende PDF-Erzeugung ist asynchron. Zeitlimits sind **kooperativ**,
-kein harter JVM-Threadabbruch. Clusterweite Exportquoten und garantierte
-Failover-Verfügbarkeit gehören nicht zum derzeitigen Funktionsumfang.
+kein harter JVM-Threadabbruch. Außer dem clusterweit serialisierten Renderer
+gibt es keine clusterweite Exportquote oder garantierte Failover-Verfügbarkeit.
 
 ## Dokumentation
 
@@ -100,5 +105,5 @@ GitHub Actions führt `clean verify` bei Push und Pull Request aus.
 Dependabot prüft Maven- und Actions-Abhängigkeiten wöchentlich. Ein Tag
 `vX.Y.Z` erzeugt nach erfolgreichen Tests einen **Entwurfsrelease** mit
 Plugin-JAR, Quellarchiven und SHA-256-Prüfsummen; keine automatische
-Produktivfreigabe. Die Workflows sind im Repository vorhanden, ihre Ausführung
-auf GitHub ist nicht durch einen lokalen Maven-Lauf nachgewiesen.
+Produktivfreigabe. Der Release-Workflow wurde noch nicht mit einem Versionstag
+ausgeführt; es gibt daher noch keinen verifizierten Release-Anhang.

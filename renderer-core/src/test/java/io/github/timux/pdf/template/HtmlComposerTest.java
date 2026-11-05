@@ -45,4 +45,15 @@ class HtmlComposerTest {
         assertTrue(result.html().select(".cover,.contents").isEmpty());
         assertFalse(result.html().head().html().contains("\"Seite \""));
     }
+
+    @Test void includesValidatedCustomCssInTheRendererDocument() {
+        var settings = PdfSettings.fromJson(PdfSettings.defaults().toJson().replace(
+                "\"customCss\": \"\"", "\"customCss\": \"h1 { color: #123456; font-size: 22pt; }\""));
+        var result = new HtmlComposer().compose(new ExportDocument("Title", List.of(
+                new ExportDocument.Section(1, 0, "Chapter", "<p>Body</p>"))),
+                settings, false, false, Map.of(), null, null);
+        assertTrue(result.html().head().select("style").html().contains("h1{color:#123456;font-size:22pt;}"));
+        assertThrows(IllegalArgumentException.class, () -> PdfSettings.fromJson(PdfSettings.defaults().toJson()
+                .replace("\"customCss\": \"\"", "\"customCss\": \"h1 { background-color: url(file:/etc/passwd); }\"")));
+    }
 }

@@ -13,11 +13,18 @@
   enthaltenen Seiten und Anhänge erneut.
 - Konfigurationsänderungen/Exportstart nur per POST mit kryptografisch
   zufälligem sitzungsgebundenem Token und konstantzeitlichem Vergleich.
-- URL-kodierte POST-Daten maximal 64 KiB, begrenzte Feldanzahl/-namen,
-  keine doppelten Felder und keine Übernahme von Query-Parametern in POST.
+- Administrativer PNG/JPEG-Upload mit Servlet-Größenlimits, zusätzlicher
+  tatsächlicher Byte-Begrenzung, Dekodierung/Re-Encoding und globaler
+  Plugin-Einstellungsspeicherung; SVG, URL-Werte und Metadaten werden nicht
+  in den Renderer übernommen.
+- URL-kodierte Verwaltungs-/Export-POST-Daten maximal 64 KiB, begrenzte
+  Feldanzahl/-namen, keine doppelten Felder und keine Übernahme von
+  Query-Parametern in POST. Logo-Uploads nutzen Multipart mit Servlet- und
+  zusätzlicher tatsächlicher Byte-Begrenzung.
 - Ausgaben werden HTML-escaped. Inhalt wird durch eine enge Jsoup-Allowlist
   geführt; keine Skripte, Inline-Styles, Eventhandler oder aktiven Einbettungen.
-- Konfiguration erlaubt nur validierte CSS-Einzelwerte, kein freies CSS/HTML.
+- Konfiguration erlaubt nur validierte CSS-Einzelwerte und exakt freigegebene
+  CSS-Selektoren/-Eigenschaften; kein freies HTML und keine CSS-URLs.
 - Renderer erhält einen W3C-DOM aus Jsoup, keine extern gelesene XML-Datei.
   Keine XML-DTD-/Entity-Auflösung über Benutzereingaben.
 - Ressourcenauflösung ausschließlich für vorab berechtigte `memory:`-Bilder.
@@ -27,6 +34,8 @@
   entfernt Originalmetadaten. ImageIO verwendet explizite RAM-Streams.
 - Bounded Queue, feste Workerzahl, Byte-/Seiten-/Bildgrenzen, keine
   PDF-Veröffentlichung als öffentlicher Anhang oder lokale Datei.
+- Clusterweite Renderer-Sperre verhindert gleichzeitige PDF-Layoutphasen auf
+  mehreren Nodes.
 - `Cache-Control: no-store, private` für Antworten; keine geschützten Inhalte
   oder Original-Rendererfehlermeldungen in der Plugin-Fehlerausgabe.
 
