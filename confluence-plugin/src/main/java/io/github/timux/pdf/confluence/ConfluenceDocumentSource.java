@@ -43,7 +43,8 @@ public final class ConfluenceDocumentSource implements DocumentCollector.Source 
     private final ConfluenceUser user;
     private final PdfSettings settings;
     private final String contextPath;
-    private final LogoStore settingsStore;
+    private final byte[] uploadedCoverLogo;
+    private final byte[] uploadedHeaderLogo;
     private final Map<Long, Content> approved = new HashMap<>();
     private final Map<Long, String> imageUris = new HashMap<>();
     private final ImageAssets assets;
@@ -56,7 +57,8 @@ public final class ConfluenceDocumentSource implements DocumentCollector.Source 
         this.contents = contents; this.children = children; this.attachmentService = attachmentService;
         this.conversion = conversion; this.permissions = permissions; this.attachments = attachments;
         this.user = user; this.settings = settings; this.contextPath = contextPath;
-        this.settingsStore = settingsStore;
+        this.uploadedCoverLogo = settingsStore.logo("cover");
+        this.uploadedHeaderLogo = settingsStore.logo("header");
         assets = new ImageAssets(settings.maxImageBytes());
     }
 
@@ -163,7 +165,7 @@ public final class ConfluenceDocumentSource implements DocumentCollector.Source 
     }
 
     private String uploadedLogo(String slot) throws IOException {
-        byte[] image = settingsStore.logo(slot);
+        byte[] image = "cover".equals(slot) ? uploadedCoverLogo : uploadedHeaderLogo;
         return image == null ? null : assets.add(image);
     }
 }
