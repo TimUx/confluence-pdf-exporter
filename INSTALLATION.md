@@ -37,6 +37,11 @@ Host bezogen. Weder Maven noch ein SDK sind auf dem Produktivserver erforderlich
    einschließlich Rechteentzug zwischen Erzeugung und Download.
 6. Erst danach kontrolliert produktiv ausrollen.
 
+Bei `Plugin 'io.github.timux.confluence.pdf' has no container` beim Aufruf
+der Servlet-Route zuerst sicherstellen, dass das installierte JAR die
+Spring-Scanner-Metadaten enthält und nicht noch ein älterer Plugin-Build aktiv
+ist. Der Servlet-Endpunkt benötigt die vom Scanner erzeugte Serviceverdrahtung.
+
 Falls ein Menü nicht sichtbar ist, die Modulaktivierung und Confluence-Menüposition
 prüfen. Die direkten relativen Routen sind
 `/plugins/servlet/universal-pdf/admin` und
