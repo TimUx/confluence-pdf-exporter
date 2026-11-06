@@ -14,12 +14,16 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <project.build.outputTimestamp>2026-11-05T00:00:00Z</project.build.outputTimestamp>
     <confluence.version>10.2.19</confluence.version>
+    <atlassian.spring.scanner.version>6.0.2</atlassian.spring.scanner.version>
     <junit.version>5.14.1</junit.version>
   </properties>
   <repositories>
     <repository><id>central</id><url>https://repo.maven.apache.org/maven2</url></repository>
     <repository><id>atlassian-public</id><url>https://packages.atlassian.com/maven-public/</url><snapshots><enabled>false</enabled></snapshots></repository>
   </repositories>
+  <pluginRepositories>
+    <pluginRepository><id>atlassian-public</id><url>https://packages.atlassian.com/maven-public/</url><snapshots><enabled>false</enabled></snapshots></pluginRepository>
+  </pluginRepositories>
   <dependencyManagement><dependencies>
     <dependency><groupId>org.junit</groupId><artifactId>junit-bom</artifactId><version>${junit.version}</version><type>pom</type><scope>import</scope></dependency>
   </dependencies></dependencyManagement>

@@ -34,6 +34,17 @@ class BundlePackagingIT {
                     java.nio.charset.StandardCharsets.UTF_8);
             assertFalse(descriptor.contains("${"));
             assertTrue(descriptor.contains("plugins-version=\"2\""));
+            assertNotNull(jar.getJarEntry("META-INF/plugin-components/component-confluence"));
+            String scannedComponents = new String(jar.getInputStream(
+                    jar.getJarEntry("META-INF/plugin-components/component-confluence")).readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(scannedComponents.contains("io.github.timux.pdf.confluence.PdfServlet"));
+            assertNotNull(jar.getJarEntry("META-INF/plugin-components/imports"));
+            String componentImports = new String(jar.getInputStream(
+                    jar.getJarEntry("META-INF/plugin-components/imports")).readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            assertTrue(componentImports.contains("com.atlassian.confluence.api.service.content.ContentService"));
+            assertTrue(componentImports.contains("com.atlassian.sal.api.transaction.TransactionTemplate"));
             assertNotNull(jar.getJarEntry("META-INF/THIRD-PARTY-NOTICES.md"));
             for (String item : manifest.getValue("Bundle-ClassPath").split(",")) {
                 if (item.equals(".")) continue;
