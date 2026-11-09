@@ -34,11 +34,18 @@ class BundlePackagingIT {
                     java.nio.charset.StandardCharsets.UTF_8);
             assertFalse(descriptor.contains("${"));
             assertTrue(descriptor.contains("plugins-version=\"2\""));
-            assertNotNull(jar.getJarEntry("META-INF/plugin-components/component-confluence"));
-            String scannedComponents = new String(jar.getInputStream(
-                    jar.getJarEntry("META-INF/plugin-components/component-confluence")).readAllBytes(),
-                    java.nio.charset.StandardCharsets.UTF_8);
-            assertTrue(scannedComponents.contains("io.github.timux.pdf.confluence.PdfServlet"));
+            // Without a Spring context Confluence creates no plugin container ("has no container").
+            assertEquals("*", manifest.getValue("Spring-Context"));
+            var springContext = jar.getJarEntry("META-INF/spring/plugin-context.xml");
+            assertNotNull(springContext, "Spring context is required for the plugin container");
+            assertTrue(new String(jar.getInputStream(springContext).readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8).contains("atlassian-scanner:scan-indexes"));
+            // The servlet module instantiates PdfServlet itself; a second Spring bean would leak worker threads.
+            var components = jar.getJarEntry("META-INF/plugin-components/component-confluence");
+            if (components != null) {
+                assertFalse(new String(jar.getInputStream(components).readAllBytes(),
+                        java.nio.charset.StandardCharsets.UTF_8).contains("PdfServlet"));
+            }
             assertNotNull(jar.getJarEntry("META-INF/plugin-components/imports"));
             String componentImports = new String(jar.getInputStream(
                     jar.getJarEntry("META-INF/plugin-components/imports")).readAllBytes(),
@@ -48,7 +55,8 @@ class BundlePackagingIT {
             assertNotNull(jar.getJarEntry("META-INF/THIRD-PARTY-NOTICES.md"));
             for (String item : manifest.getValue("Bundle-ClassPath").split(",")) {
                 if (item.equals(".")) continue;
-                assertFalse(item.startsWith("confluence-") || item.startsWith("sal-api-") || item.startsWith("jakarta.servlet-"),
+                assertFalse(item.startsWith("confluence-") || item.startsWith("sal-api-") || item.startsWith("jakarta.servlet-")
+                                || item.startsWith("atlassian-spring-scanner-"),
                         "Host APIs must not be bundled: " + item);
                 var entry = jar.getJarEntry(item);
                 assertNotNull(entry, "Missing nested dependency " + item);

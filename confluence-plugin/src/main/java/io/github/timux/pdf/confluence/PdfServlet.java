@@ -10,7 +10,6 @@ import com.atlassian.confluence.security.Permission;
 import com.atlassian.confluence.security.PermissionManager;
 import com.atlassian.confluence.user.AuthenticatedUserThreadLocal;
 import com.atlassian.confluence.user.ConfluenceUser;
-import com.atlassian.plugin.spring.scanner.annotation.component.ConfluenceComponent;
 import com.atlassian.plugin.spring.scanner.annotation.imports.ComponentImport;
 import com.atlassian.sal.api.pluginsettings.PluginSettingsFactory;
 import com.atlassian.sal.api.transaction.TransactionTemplate;
@@ -38,7 +37,6 @@ import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.Part;
 
 @MultipartConfig(maxFileSize = 512_000, maxRequestSize = 540_672, fileSizeThreshold = 0)
-@ConfluenceComponent
 public final class PdfServlet extends HttpServlet {
     private static final Logger LOG = Logger.getLogger(PdfServlet.class.getName());
     private static final String[] FLAGS = {"enabled", "cover", "toc", "header", "footer", "pageNumbers", "landscape"};
