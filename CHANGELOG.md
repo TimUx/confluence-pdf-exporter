@@ -1,5 +1,18 @@
 # Changelog
 
+## Unveröffentlicht
+
+- Behoben: Admin- und Exportseite schlugen mit
+  `Plugin 'io.github.timux.confluence.pdf' has no container` fehl. Das JAR
+  enthält jetzt einen Spring-Kontext (`META-INF/spring/plugin-context.xml`,
+  `Spring-Context: *`), damit Confluence einen Plugin-Container anlegt.
+- Spring-Scanner-Runtime wird nicht mehr eingebettet (stellt Confluence bereit).
+- `PdfServlet` ist kein zusätzlicher Spring-Bean mehr; das Servlet-Modul
+  erzeugt die einzige Instanz (keine doppelten Export-Worker-Threads).
+- Keine PDFBox-Warnungen `Using fallback font … for base font …` mehr pro
+  Export. Die 14 nicht eingebetteten PDF-Standardschriften gelten nicht mehr
+  als Fallback; die Schriftauswahl selbst ist unverändert.
+
 ## 1.0.0-SNAPSHOT — 2026-11-05
 
 - Java-21-Maven-Reaktor aus leerem README-Repository erstellt.

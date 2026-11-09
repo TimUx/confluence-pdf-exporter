@@ -16,6 +16,8 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.jsoup.helper.W3CDom;
 
 public final class PdfEngine {
+    static { Standard14FontMapper.install(); }
+
     public byte[] render(HtmlComposer.Prepared input, PdfSettings settings) throws IOException {
         long start = System.nanoTime();
         var output = new BoundedOutput(settings.maxPdfBytes());
