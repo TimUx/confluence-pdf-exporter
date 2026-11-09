@@ -82,14 +82,20 @@ public final class PdfServlet extends HttpServlet {
         res.setHeader("Referrer-Policy", "same-origin");
         res.setHeader("Content-Security-Policy", "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
         ConfluenceUser user = AuthenticatedUserThreadLocal.get();
-        if (user == null) { res.sendError(401, "Anmeldung erforderlich."); return; }
+        if (user == null) { page(res, 401, "Anmeldung erforderlich", "<p>Bitte bei Confluence anmelden.</p>", false); return; }
         String path = req.getPathInfo() == null ? "" : req.getPathInfo();
         try {
             if (post) {
                 boolean upload = "/logo".equals(path) && req.getContentType() != null
                         && req.getContentType().toLowerCase().startsWith("multipart/form-data");
                 if (!upload) req = BoundedForm.read(req);
-                if (!Csrf.valid(req)) { res.sendError(403, "Formular abgelaufen. Bitte neu laden."); return; }
+                String csrf = Csrf.problem(req);
+                if (csrf != null) {
+                    LOG.warning("PDF request rejected: path=" + path + " reason=csrf (" + csrf + ")");
+                    page(res, 403, "Formular abgelaufen",
+                            "<p>Das Formular ist abgelaufen oder ungültig. Bitte die vorherige Seite neu laden und erneut absenden.</p>", false);
+                    return;
+                }
                 switch (path) {
                     case "/admin" -> saveSettings(req, res, user);
                     case "/export", "/preview" -> start(req, res, user, path.equals("/preview"));
@@ -112,7 +118,8 @@ public final class PdfServlet extends HttpServlet {
                 }
             }
         } catch (SecurityException ex) {
-            res.sendError(403, "Keine Berechtigung.");
+            LOG.warning("PDF request rejected: path=" + path + " reason=permission");
+            page(res, 403, "Keine Berechtigung", "<p>Für diese Aktion oder Seite fehlt die Berechtigung.</p>", false);
         } catch (IllegalArgumentException | ExportException ex) {
             page(res, 400, "Export nicht möglich", "<p>" + escape(ex.getMessage()) + "</p><p>Bitte zur vorherigen Seite zurückkehren.</p>", false);
         } catch (Exception ex) {

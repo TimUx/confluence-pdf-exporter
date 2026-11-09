@@ -42,6 +42,17 @@ class RequestSecurityTest {
         parsed.getParameterValues("field")[0] = "changed";
         assertEquals("Prüfung & Text", parsed.getParameter("field"));
     }
+    @Test void bodyAlreadyConsumedByHostFilterFallsBackToContainerParameters() throws Exception {
+        var req = request("");
+        var params = new java.util.LinkedHashMap<String, String[]>();
+        params.put("csrf", new String[]{"token"}); params.put("pageId", new String[]{"42"});
+        when(req.getParameterMap()).thenReturn(params);
+        var parsed = BoundedForm.read(req);
+        assertEquals("token", parsed.getParameter("csrf"));
+        assertEquals("42", parsed.getParameter("pageId"));
+        params.put("csrf", new String[]{"one", "two"});
+        assertThrows(IllegalArgumentException.class, () -> BoundedForm.read(req));
+    }
     private static HttpServletRequest request(String body) throws Exception {
         var request = mock(HttpServletRequest.class);
         when(request.getContentType()).thenReturn("application/x-www-form-urlencoded;charset=UTF-8");

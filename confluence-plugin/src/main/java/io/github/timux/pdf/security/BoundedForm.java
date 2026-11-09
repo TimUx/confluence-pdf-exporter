@@ -20,6 +20,20 @@ public final class BoundedForm {
         byte[] bytes = request.getInputStream().readNBytes(65_537);
         if (bytes.length > 65_536) throw new IllegalArgumentException("Formular zu groß.");
         Map<String, String[]> fields = new LinkedHashMap<>();
+        if (bytes.length == 0) {
+            // A host filter (e.g. one reading "pageId") may already have parsed and consumed the body.
+            // Tomcat bounds that parsing itself (maxPostSize / maxParameterCount); apply our limits on top.
+            int total = 0;
+            for (var entry : request.getParameterMap().entrySet()) {
+                String[] values = entry.getValue();
+                if (entry.getKey().length() > 64 || fields.size() >= 40 || values == null || values.length != 1)
+                    throw new IllegalArgumentException("Ungültige oder doppelte Formularfelder.");
+                total += entry.getKey().length() + values[0].length();
+                if (total > 65_536) throw new IllegalArgumentException("Formular zu groß.");
+                fields.put(entry.getKey(), new String[]{values[0]});
+            }
+            return wrap(request, fields);
+        }
         for (String pair : new String(bytes, StandardCharsets.UTF_8).split("&", -1)) {
             if (pair.isEmpty()) continue;
             String[] parts = pair.split("=", 2);
@@ -28,6 +42,10 @@ public final class BoundedForm {
             if (key.length() > 64 || fields.size() >= 40 || fields.putIfAbsent(key, new String[]{value}) != null)
                 throw new IllegalArgumentException("Ungültige oder doppelte Formularfelder.");
         }
+        return wrap(request, fields);
+    }
+
+    private static HttpServletRequest wrap(HttpServletRequest request, Map<String, String[]> fields) {
         return new HttpServletRequestWrapper(request) {
             @Override public String getParameter(String name) {
                 String[] value = fields.get(name); return value == null ? null : value[0];
