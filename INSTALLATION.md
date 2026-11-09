@@ -38,9 +38,12 @@ Host bezogen. Weder Maven noch ein SDK sind auf dem Produktivserver erforderlich
 6. Erst danach kontrolliert produktiv ausrollen.
 
 Bei `Plugin 'io.github.timux.confluence.pdf' has no container` beim Aufruf
-der Servlet-Route zuerst sicherstellen, dass das installierte JAR die
-Spring-Scanner-Metadaten enthält und nicht noch ein älterer Plugin-Build aktiv
-ist. Der Servlet-Endpunkt benötigt die vom Scanner erzeugte Serviceverdrahtung.
+der Servlet-Route sicherstellen, dass das installierte JAR
+`META-INF/spring/plugin-context.xml` und den Manifest-Header
+`Spring-Context: *` enthält und kein älterer Plugin-Build mehr aktiv ist
+(altes Plugin deinstallieren, dann neu hochladen). Ohne Spring-Kontext legt
+Confluence für das Plugin keinen Container an, und das Servlet kann seine
+Confluence-Dienste nicht erhalten.
 
 Falls ein Menü nicht sichtbar ist, die Modulaktivierung und Confluence-Menüposition
 prüfen. Die direkten relativen Routen sind
