@@ -30,9 +30,12 @@ import java.util.List;
 import java.util.Map;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Element;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Request-thread adapter: host rendering, ORM access and effective-user checks stay together. */
 public final class ConfluenceDocumentSource implements DocumentCollector.Source {
+    private static final Logger LOG = LoggerFactory.getLogger(ConfluenceDocumentSource.class);
     public record Snapshot(ExportDocument document, HtmlComposer.Prepared prepared, List<Long> attachmentIds) {}
     private final ContentService contents;
     private final ChildContentService children;
@@ -102,7 +105,7 @@ public final class ConfluenceDocumentSource implements DocumentCollector.Source 
             var storage = page.getBody().get(ContentRepresentation.STORAGE);
             if (storage == null || storage.getValue().length() > settings.maxHtmlBytes())
                 throw new ExportException("Quellseite überschreitet das Größenlimit.");
-            String rendered = conversion.convertBody(page, ContentRepresentation.EXPORT_VIEW).getValue();
+            String rendered = render(page, id);
             if (rendered.length() > settings.maxHtmlBytes()) throw new ExportException("HTML-Limit überschritten.");
             var fragment = Jsoup.parseBodyFragment(rendered);
             for (Element image : fragment.select("img")) {
@@ -125,7 +128,19 @@ public final class ConfluenceDocumentSource implements DocumentCollector.Source 
         } catch (ExportException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new ExportException("Confluence-Inhalt konnte nicht gerendert werden.");
+            String reference = java.util.UUID.randomUUID().toString();
+            LOG.error("Universal PDF: rendering page {} failed (reference={})", id, reference, ex);
+            throw new ExportException("Confluence-Inhalt konnte nicht gerendert werden. Referenz im Log: " + reference);
+        }
+    }
+
+    /** Export view first; some hosts or macros reject it, so fall back to the normal page view. */
+    private String render(Content page, long id) {
+        try {
+            return conversion.convertBody(page, ContentRepresentation.EXPORT_VIEW).getValue();
+        } catch (RuntimeException ex) {
+            LOG.warn("Universal PDF: export view of page {} failed, retrying with normal view: {}", id, ex.toString());
+            return conversion.convertBody(page, ContentRepresentation.VIEW).getValue();
         }
     }
 

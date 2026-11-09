@@ -31,14 +31,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.Part;
 
 @MultipartConfig(maxFileSize = 512_000, maxRequestSize = 540_672, fileSizeThreshold = 0)
 public final class PdfServlet extends HttpServlet {
-    private static final Logger LOG = Logger.getLogger(PdfServlet.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(PdfServlet.class);
     private static final String[] FLAGS = {"enabled", "cover", "toc", "header", "footer", "pageNumbers", "landscape"};
     private final ContentService contents;
     private final ChildContentService children;
@@ -91,7 +92,7 @@ public final class PdfServlet extends HttpServlet {
                 if (!upload) req = BoundedForm.read(req);
                 String csrf = Csrf.problem(req);
                 if (csrf != null) {
-                    LOG.warning("PDF request rejected: path=" + path + " reason=csrf (" + csrf + ")");
+                    LOG.warn("PDF request rejected: path={} reason=csrf ({})", path, csrf);
                     page(res, 403, "Formular abgelaufen",
                             "<p>Das Formular ist abgelaufen oder ungültig. Bitte die vorherige Seite neu laden und erneut absenden.</p>", false);
                     return;
@@ -118,13 +119,13 @@ public final class PdfServlet extends HttpServlet {
                 }
             }
         } catch (SecurityException ex) {
-            LOG.warning("PDF request rejected: path=" + path + " reason=permission");
+            LOG.warn("PDF request rejected: path={} reason=permission", path);
             page(res, 403, "Keine Berechtigung", "<p>Für diese Aktion oder Seite fehlt die Berechtigung.</p>", false);
         } catch (IllegalArgumentException | ExportException ex) {
             page(res, 400, "Export nicht möglich", "<p>" + escape(ex.getMessage()) + "</p><p>Bitte zur vorherigen Seite zurückkehren.</p>", false);
         } catch (Exception ex) {
             String reference = UUID.randomUUID().toString();
-            LOG.warning("PDF request failed: reference=" + reference + " type=" + ex.getClass().getName());
+            LOG.error("PDF request failed: reference={} path={}", reference, path, ex);
             page(res, 500, "Interner Exportfehler", "<p>Referenz: " + reference + "</p>", false);
         }
     }
@@ -388,7 +389,9 @@ public final class PdfServlet extends HttpServlet {
                 + (administration ? "atl.admin" : "atl.general") + "\"><title>" + escape(title)
                 + "</title><style>main{max-width:980px;margin:2em auto;padding:1em}textarea{width:100%}"
                 + "input.text{width:36em;max-width:100%}button{margin:0.5em 0}</style></head>"
-                + "<body><main class=\"aui-page-panel\"><h1>" + escape(title) + "</h1>" + body + "</main></body></html>");
+                + "<body><main class=\"aui-page-panel\">"
+                // atl.general already shows the <title> as page heading.
+                + (administration ? "<h1>" + escape(title) + "</h1>" : "") + body + "</main></body></html>");
     }
     @Override public void destroy() { jobs.close(); super.destroy(); }
 }

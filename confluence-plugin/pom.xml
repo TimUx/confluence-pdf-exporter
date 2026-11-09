@@ -30,6 +30,7 @@
       <exclusions><exclusion><groupId>*</groupId><artifactId>*</artifactId></exclusion></exclusions>
     </dependency>
     <dependency><groupId>com.atlassian.plugin</groupId><artifactId>atlassian-spring-scanner-annotation</artifactId><version>${atlassian.spring.scanner.version}</version><scope>provided</scope></dependency>
+    <dependency><groupId>org.slf4j</groupId><artifactId>slf4j-api</artifactId><version>1.7.36</version><scope>provided</scope></dependency>
     <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><scope>test</scope></dependency>
     <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><version>5.24.0</version><scope>test</scope></dependency>
   </dependencies>
@@ -52,7 +53,7 @@
           <Include-Resource>{maven-resources},META-INF/plugin-components=target/classes/META-INF/plugin-components</Include-Resource>
           <Embed-Dependency>*;scope=compile|runtime;inline=false</Embed-Dependency>
           <Embed-Transitive>true</Embed-Transitive>
-          <Import-Package>!java.*,com.atlassian.confluence.*;version="0",com.atlassian.sal.api.*;version="0",com.atlassian.beehive;version="0",com.atlassian.user;version="0",com.atlassian.core.bean;version="0",com.atlassian.renderer;version="0",jakarta.servlet.*;version="0",javax.imageio.*,javax.xml.*,org.w3c.dom,org.xml.sax.*, *;resolution:=optional</Import-Package>
+          <Import-Package>!java.*,com.atlassian.confluence.*;version="0",com.atlassian.sal.api.*;version="0",com.atlassian.beehive;version="0",com.atlassian.user;version="0",com.atlassian.core.bean;version="0",com.atlassian.renderer;version="0",org.slf4j;version="0",jakarta.servlet.*;version="0",javax.imageio.*,javax.xml.*,org.w3c.dom,org.xml.sax.*, *;resolution:=optional</Import-Package>
         </instructions></configuration>
       </plugin>
       <plugin><groupId>com.atlassian.plugin</groupId><artifactId>atlassian-spring-scanner-maven-plugin</artifactId><version>${atlassian.spring.scanner.version}</version>

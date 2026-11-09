@@ -77,6 +77,31 @@ class ConfluenceDocumentSourceTest {
         verify(conversion).convertBody(parent, ContentRepresentation.EXPORT_VIEW);
     }
 
+    @Test void exportViewFailureFallsBackToNormalView() {
+        ContentService service = mock(ContentService.class);
+        var finder = mock(ContentService.ContentFinder.class);
+        when(service.find(any(Expansion[].class))).thenReturn(finder);
+        Content page = content(1, "Root", 0);
+        var single = mock(ContentService.SingleContentFetcher.class);
+        when(finder.withId(page.getId())).thenReturn(single);
+        when(single.fetch()).thenReturn(Optional.of(page));
+        var storage = mock(ContentBody.class);
+        when(storage.getValue()).thenReturn("<p>Stored</p>");
+        when(page.getBody()).thenReturn(Map.of(ContentRepresentation.STORAGE, storage));
+        var view = mock(ContentBody.class);
+        when(view.getValue()).thenReturn("<p>Normal view</p>");
+        var conversion = mock(ContentBodyConversionService.class);
+        when(conversion.convertBody(page, ContentRepresentation.EXPORT_VIEW)).thenThrow(new IllegalStateException("macro"));
+        when(conversion.convertBody(page, ContentRepresentation.VIEW)).thenReturn(view);
+        var source = new ConfluenceDocumentSource(service, null, mock(AttachmentService.class), conversion,
+                null, null, null, PdfSettings.defaults(), "", mock(io.github.timux.pdf.hostconfig.LogoStore.class));
+        assertTrue(source.canRead(1));
+        assertTrue(source.html(1).contains("Normal view"));
+        when(conversion.convertBody(page, ContentRepresentation.VIEW)).thenThrow(new IllegalStateException("broken"));
+        var failure = assertThrows(ExportException.class, () -> source.html(1));
+        assertTrue(failure.getMessage().contains("Referenz"));
+    }
+
     @Test void attachmentPathsRejectUrlsAndRespectContextPath() {
         assertEquals("/download/attachments/42/logo.png",
                 HostContent.attachmentPath("/wiki/download/attachments/42/logo.png?version=1", "/wiki"));
