@@ -75,6 +75,9 @@ class ConfluenceDocumentSourceTest {
         assertTrue(source.html(1).contains("Export view"));
         verify(unreadable, never()).getTitle();
         verify(conversion).convertBody(parent, ContentRepresentation.EXPORT_VIEW);
+        verify(service).find(ConfluenceDocumentSource.BODY_STORAGE);
+        assertEquals("body", ConfluenceDocumentSource.BODY_STORAGE.getPropertyName());
+        assertTrue(ConfluenceDocumentSource.BODY_STORAGE.getSubExpansions().canExpand("storage"));
     }
 
     @Test void exportViewFailureFallsBackToNormalView() {

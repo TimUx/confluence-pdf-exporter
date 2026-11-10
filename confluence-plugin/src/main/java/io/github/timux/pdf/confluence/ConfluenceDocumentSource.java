@@ -2,6 +2,7 @@ package io.github.timux.pdf.confluence;
 
 import com.atlassian.confluence.api.model.Depth;
 import com.atlassian.confluence.api.model.Expansion;
+import com.atlassian.confluence.api.model.Expansions;
 import com.atlassian.confluence.api.model.content.Content;
 import com.atlassian.confluence.api.model.content.ContentRepresentation;
 import com.atlassian.confluence.api.model.content.ContentType;
@@ -36,6 +37,8 @@ import org.slf4j.LoggerFactory;
 /** Request-thread adapter: host rendering, ORM access and effective-user checks stay together. */
 public final class ConfluenceDocumentSource implements DocumentCollector.Source {
     private static final Logger LOG = LoggerFactory.getLogger(ConfluenceDocumentSource.class);
+    // Nested expansion: a single Expansion named "body.storage" is not parsed and leaves the body collapsed.
+    static final Expansion BODY_STORAGE = new Expansion("body", new Expansions(new Expansion("storage")));
     public record Snapshot(ExportDocument document, HtmlComposer.Prepared prepared, List<Long> attachmentIds) {}
     private final ContentService contents;
     private final ChildContentService children;
@@ -100,7 +103,7 @@ public final class ConfluenceDocumentSource implements DocumentCollector.Source 
     @Override public String html(long id) {
         page(id);
         try {
-            Content page = contents.find(new Expansion("body.storage")).withId(ContentId.of(id)).fetch()
+            Content page = contents.find(BODY_STORAGE).withId(ContentId.of(id)).fetch()
                     .orElseThrow(() -> new ExportException("Seite nicht verfügbar."));
             var storage = page.getBody().get(ContentRepresentation.STORAGE);
             if (storage == null || storage.getValue().length() > settings.maxHtmlBytes())
