@@ -53,7 +53,7 @@
           <Include-Resource>{maven-resources},META-INF/plugin-components=target/classes/META-INF/plugin-components</Include-Resource>
           <Embed-Dependency>*;scope=compile|runtime;inline=false</Embed-Dependency>
           <Embed-Transitive>true</Embed-Transitive>
-          <Import-Package>!java.*,com.atlassian.confluence.*;version="0",com.atlassian.sal.api.*;version="0",com.atlassian.beehive;version="0",com.atlassian.user;version="0",com.atlassian.core.bean;version="0",com.atlassian.renderer;version="0",org.slf4j;version="0",jakarta.servlet.*;version="0",javax.imageio.*,javax.xml.*,org.w3c.dom,org.xml.sax.*, *;resolution:=optional</Import-Package>
+          <Import-Package>!java.*,com.atlassian.confluence.*;version="0",com.atlassian.sal.api.*;version="0",com.atlassian.beehive;version="0",com.atlassian.user;version="0",com.atlassian.core.bean;version="0",com.atlassian.renderer;version="0",org.slf4j;version="0",org.slf4j.spi;version="0";resolution:=mandatory,jakarta.servlet.*;version="0",javax.imageio.*,javax.xml.*,org.w3c.dom,org.xml.sax.*, *;resolution:=optional</Import-Package>
         </instructions></configuration>
       </plugin>
       <plugin><groupId>com.atlassian.plugin</groupId><artifactId>atlassian-spring-scanner-maven-plugin</artifactId><version>${atlassian.spring.scanner.version}</version>
