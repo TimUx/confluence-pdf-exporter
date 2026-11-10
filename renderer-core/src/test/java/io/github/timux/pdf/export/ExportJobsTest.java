@@ -49,6 +49,20 @@ class ExportJobsTest {
             assertFalse(jobs.view(id, "owner").error().contains("Protected"));
         } finally { release.countDown(); }
     }
+    @Test void errorsFailTheJobInsteadOfLeavingItRunning() throws Exception {
+        try (var jobs = new ExportJobs()) {
+            UUID id = jobs.submit("owner", List.of(1L), List.of(), "Title.pdf",
+                    () -> { throw new NoClassDefFoundError("renderer/Internal"); });
+            await(jobs, id);
+            assertEquals(ExportJobs.State.FAILED, jobs.view(id, "owner").state());
+            assertFalse(jobs.view(id, "owner").error().contains("Internal"));
+            UUID next = jobs.submit("owner", List.of(1L), List.of(), "Title.pdf",
+                    () -> { throw new ExportException("Zeitlimit bei der PDF-Erzeugung."); });
+            await(jobs, next);
+            assertEquals("Zeitlimit bei der PDF-Erzeugung.", jobs.view(next, "owner").error());
+        }
+    }
+
     @Test void limitsWorkersAndQueueWithoutUnboundedTaskAdmission() {
         var release = new CountDownLatch(1);
         var started = new java.util.concurrent.atomic.AtomicInteger();

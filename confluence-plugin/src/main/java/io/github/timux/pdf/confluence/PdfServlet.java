@@ -173,21 +173,41 @@ public final class PdfServlet extends HttpServlet {
             var snapshot = transactions.execute(() -> source.snapshot(root, tree, toc, numbers));
             UUID id = jobs.submit(owner(user), snapshot.document().sections().stream().map(s -> s.id()).toList(),
                     snapshot.attachmentIds(), snapshot.document().fileName(),
-                    () -> {
-                        var lock = clusterLocks.getLockForName("io.github.timux.confluence.pdf.renderer");
-                        boolean acquired = false;
-                        try {
-                            acquired = lock.tryLock(config.timeoutSeconds(), TimeUnit.SECONDS);
-                            if (!acquired) throw new ExportException("Clusterweite PDF-Warteschlange ausgelastet.");
-                            return new ExportJobs.Result(new PdfEngine().render(snapshot.prepared(), config),
-                                    snapshot.prepared().warnings());
-                        } finally {
-                            if (acquired) lock.unlock();
-                        }
-                    });
+                    () -> render(snapshot, config));
             res.setStatus(303);
             res.setHeader("Location", base(req) + "/status?id=" + id);
         } finally { snapshots.release(); }
+    }
+
+    /** Runs on a worker thread, outside any request. Every failure is logged; nothing may escape silently. */
+    private ExportJobs.Result render(ConfluenceDocumentSource.Snapshot snapshot, PdfSettings config) {
+        Thread thread = Thread.currentThread();
+        ClassLoader previous = thread.getContextClassLoader();
+        // The embedded renderer libraries discover logging/XML/image services through the context class loader.
+        thread.setContextClassLoader(PdfServlet.class.getClassLoader());
+        long start = System.currentTimeMillis();
+        boolean acquired = false;
+        java.util.concurrent.locks.Lock lock = null;
+        try {
+            LOG.info("Universal PDF: rendering started ({} source pages)", snapshot.document().sections().size());
+            lock = clusterLocks.getLockForName("io.github.timux.confluence.pdf.renderer");
+            acquired = lock.tryLock(config.timeoutSeconds(), TimeUnit.SECONDS);
+            if (!acquired) throw new ExportException("Clusterweite PDF-Warteschlange ausgelastet.");
+            byte[] pdf = new PdfEngine().render(snapshot.prepared(), config);
+            LOG.info("Universal PDF: rendering finished, {} bytes in {} ms", pdf.length, System.currentTimeMillis() - start);
+            return new ExportJobs.Result(pdf, snapshot.prepared().warnings());
+        } catch (ExportException ex) {
+            LOG.warn("Universal PDF: rendering rejected: {}", ex.getMessage());
+            throw ex;
+        } catch (Throwable ex) {
+            String reference = UUID.randomUUID().toString();
+            LOG.error("Universal PDF: rendering failed (reference={})", reference, ex);
+            if (ex instanceof InterruptedException) thread.interrupt();
+            throw new ExportException("PDF-Erzeugung fehlgeschlagen. Referenz im Log: " + reference);
+        } finally {
+            if (acquired) lock.unlock();
+            thread.setContextClassLoader(previous);
+        }
     }
 
     private void uploadLogo(HttpServletRequest req, HttpServletResponse res, ConfluenceUser user)
@@ -250,6 +270,8 @@ public final class PdfServlet extends HttpServlet {
                 body.append("</ul>");
             }
         } else if (view.state() != ExportJobs.State.FAILED) {
+            res.setHeader("Refresh", "3");
+            body.append("<p>Diese Seite aktualisiert sich automatisch.</p>");
             body.append("<a class=\"aui-button\" href=\"").append(escape(base(req))).append("/status?id=")
                     .append(id).append("\">Status aktualisieren</a>");
         }

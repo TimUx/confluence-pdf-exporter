@@ -68,10 +68,13 @@ public final class ExportJobs implements AutoCloseable {
                 try {
                     Result result = work.call();
                     synchronized (this) { job.result = result; job.state = State.COMPLETE; }
-                } catch (Exception ex) {
+                } catch (Throwable ex) {
+                    // Throwable, not Exception: a LinkageError in the renderer must not leave the job RUNNING forever.
                     synchronized (this) {
                         // Do not expose renderer exceptions, which may contain protected content or URLs.
-                        job.error = "PDF-Erzeugung fehlgeschlagen oder Ressourcenlimit erreicht.";
+                        // ExportException messages are written by this plugin and are safe to show.
+                        job.error = ex instanceof ExportException ? ex.getMessage()
+                                : "PDF-Erzeugung fehlgeschlagen oder Ressourcenlimit erreicht.";
                         job.state = State.FAILED;
                     }
                 }
