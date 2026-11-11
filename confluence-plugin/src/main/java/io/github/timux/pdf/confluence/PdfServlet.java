@@ -31,14 +31,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.http.Part;
 
 @MultipartConfig(maxFileSize = 512_000, maxRequestSize = 540_672, fileSizeThreshold = 0)
 public final class PdfServlet extends HttpServlet {
-    private static final Logger LOG = Logger.getLogger(PdfServlet.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(PdfServlet.class);
     private static final String[] FLAGS = {"enabled", "cover", "toc", "header", "footer", "pageNumbers", "landscape"};
     private final ContentService contents;
     private final ChildContentService children;
@@ -82,14 +83,20 @@ public final class PdfServlet extends HttpServlet {
         res.setHeader("Referrer-Policy", "same-origin");
         res.setHeader("Content-Security-Policy", "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'");
         ConfluenceUser user = AuthenticatedUserThreadLocal.get();
-        if (user == null) { res.sendError(401, "Anmeldung erforderlich."); return; }
+        if (user == null) { page(res, 401, "Anmeldung erforderlich", "<p>Bitte bei Confluence anmelden.</p>", false); return; }
         String path = req.getPathInfo() == null ? "" : req.getPathInfo();
         try {
             if (post) {
                 boolean upload = "/logo".equals(path) && req.getContentType() != null
                         && req.getContentType().toLowerCase().startsWith("multipart/form-data");
                 if (!upload) req = BoundedForm.read(req);
-                if (!Csrf.valid(req)) { res.sendError(403, "Formular abgelaufen. Bitte neu laden."); return; }
+                String csrf = Csrf.problem(req);
+                if (csrf != null) {
+                    LOG.warn("PDF request rejected: path={} reason=csrf ({})", path, csrf);
+                    page(res, 403, "Formular abgelaufen",
+                            "<p>Das Formular ist abgelaufen oder ungültig. Bitte die vorherige Seite neu laden und erneut absenden.</p>", false);
+                    return;
+                }
                 switch (path) {
                     case "/admin" -> saveSettings(req, res, user);
                     case "/export", "/preview" -> start(req, res, user, path.equals("/preview"));
@@ -112,12 +119,13 @@ public final class PdfServlet extends HttpServlet {
                 }
             }
         } catch (SecurityException ex) {
-            res.sendError(403, "Keine Berechtigung.");
+            LOG.warn("PDF request rejected: path={} reason=permission", path);
+            page(res, 403, "Keine Berechtigung", "<p>Für diese Aktion oder Seite fehlt die Berechtigung.</p>", false);
         } catch (IllegalArgumentException | ExportException ex) {
             page(res, 400, "Export nicht möglich", "<p>" + escape(ex.getMessage()) + "</p><p>Bitte zur vorherigen Seite zurückkehren.</p>", false);
         } catch (Exception ex) {
             String reference = UUID.randomUUID().toString();
-            LOG.warning("PDF request failed: reference=" + reference + " type=" + ex.getClass().getName());
+            LOG.error("PDF request failed: reference={} path={}", reference, path, ex);
             page(res, 500, "Interner Exportfehler", "<p>Referenz: " + reference + "</p>", false);
         }
     }
@@ -165,21 +173,41 @@ public final class PdfServlet extends HttpServlet {
             var snapshot = transactions.execute(() -> source.snapshot(root, tree, toc, numbers));
             UUID id = jobs.submit(owner(user), snapshot.document().sections().stream().map(s -> s.id()).toList(),
                     snapshot.attachmentIds(), snapshot.document().fileName(),
-                    () -> {
-                        var lock = clusterLocks.getLockForName("io.github.timux.confluence.pdf.renderer");
-                        boolean acquired = false;
-                        try {
-                            acquired = lock.tryLock(config.timeoutSeconds(), TimeUnit.SECONDS);
-                            if (!acquired) throw new ExportException("Clusterweite PDF-Warteschlange ausgelastet.");
-                            return new ExportJobs.Result(new PdfEngine().render(snapshot.prepared(), config),
-                                    snapshot.prepared().warnings());
-                        } finally {
-                            if (acquired) lock.unlock();
-                        }
-                    });
+                    () -> render(snapshot, config));
             res.setStatus(303);
             res.setHeader("Location", base(req) + "/status?id=" + id);
         } finally { snapshots.release(); }
+    }
+
+    /** Runs on a worker thread, outside any request. Every failure is logged; nothing may escape silently. */
+    private ExportJobs.Result render(ConfluenceDocumentSource.Snapshot snapshot, PdfSettings config) {
+        Thread thread = Thread.currentThread();
+        ClassLoader previous = thread.getContextClassLoader();
+        // The embedded renderer libraries discover logging/XML/image services through the context class loader.
+        thread.setContextClassLoader(PdfServlet.class.getClassLoader());
+        long start = System.currentTimeMillis();
+        boolean acquired = false;
+        java.util.concurrent.locks.Lock lock = null;
+        try {
+            LOG.info("Universal PDF: rendering started ({} source pages)", snapshot.document().sections().size());
+            lock = clusterLocks.getLockForName("io.github.timux.confluence.pdf.renderer");
+            acquired = lock.tryLock(config.timeoutSeconds(), TimeUnit.SECONDS);
+            if (!acquired) throw new ExportException("Clusterweite PDF-Warteschlange ausgelastet.");
+            byte[] pdf = new PdfEngine().render(snapshot.prepared(), config);
+            LOG.info("Universal PDF: rendering finished, {} bytes in {} ms", pdf.length, System.currentTimeMillis() - start);
+            return new ExportJobs.Result(pdf, snapshot.prepared().warnings());
+        } catch (ExportException ex) {
+            LOG.warn("Universal PDF: rendering rejected: {}", ex.getMessage());
+            throw ex;
+        } catch (Throwable ex) {
+            String reference = UUID.randomUUID().toString();
+            LOG.error("Universal PDF: rendering failed (reference={})", reference, ex);
+            if (ex instanceof InterruptedException) thread.interrupt();
+            throw new ExportException("PDF-Erzeugung fehlgeschlagen. Referenz im Log: " + reference);
+        } finally {
+            if (acquired) lock.unlock();
+            thread.setContextClassLoader(previous);
+        }
     }
 
     private void uploadLogo(HttpServletRequest req, HttpServletResponse res, ConfluenceUser user)
@@ -242,6 +270,8 @@ public final class PdfServlet extends HttpServlet {
                 body.append("</ul>");
             }
         } else if (view.state() != ExportJobs.State.FAILED) {
+            res.setHeader("Refresh", "3");
+            body.append("<p>Diese Seite aktualisiert sich automatisch.</p>");
             body.append("<a class=\"aui-button\" href=\"").append(escape(base(req))).append("/status?id=")
                     .append(id).append("\">Status aktualisieren</a>");
         }
@@ -381,7 +411,9 @@ public final class PdfServlet extends HttpServlet {
                 + (administration ? "atl.admin" : "atl.general") + "\"><title>" + escape(title)
                 + "</title><style>main{max-width:980px;margin:2em auto;padding:1em}textarea{width:100%}"
                 + "input.text{width:36em;max-width:100%}button{margin:0.5em 0}</style></head>"
-                + "<body><main class=\"aui-page-panel\"><h1>" + escape(title) + "</h1>" + body + "</main></body></html>");
+                + "<body><main class=\"aui-page-panel\">"
+                // atl.general already shows the <title> as page heading.
+                + (administration ? "<h1>" + escape(title) + "</h1>" : "") + body + "</main></body></html>");
     }
     @Override public void destroy() { jobs.close(); super.destroy(); }
 }

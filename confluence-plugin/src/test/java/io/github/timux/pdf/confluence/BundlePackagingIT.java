@@ -29,6 +29,10 @@ class BundlePackagingIT {
             String imports = manifest.getValue("Import-Package");
             assertTrue(imports.contains("jakarta.servlet.http"));
             assertFalse(imports.contains("com.openhtmltopdf"));
+            // Confluence 10 exports SLF4J 2.x; a [1.7,2) range or optional import leaves commons-logging without it.
+            String spi = java.util.Arrays.stream(imports.split(",(?=[a-z])"))
+                    .filter(entry -> entry.startsWith("org.slf4j.spi;")).findFirst().orElse("");
+            assertTrue(spi.contains("version=0") && !spi.contains("resolution:=optional"), imports);
             assertFalse(imports.contains("org.apache.pdfbox"));
             String descriptor = new String(jar.getInputStream(jar.getJarEntry("atlassian-plugin.xml")).readAllBytes(),
                     java.nio.charset.StandardCharsets.UTF_8);

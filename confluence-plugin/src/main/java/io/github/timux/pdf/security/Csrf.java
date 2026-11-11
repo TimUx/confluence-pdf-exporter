@@ -21,12 +21,19 @@ public final class Csrf {
             return token;
         }
     }
-    public static boolean valid(HttpServletRequest request) {
+    public static boolean valid(HttpServletRequest request) { return problem(request) == null; }
+
+    /** Why the token check failed (never includes token values), or null when valid. */
+    public static String problem(HttpServletRequest request) {
         var session = request.getSession(false);
-        if (session == null) return false;
+        if (session == null) return "no session";
         String expected = (String) session.getAttribute(KEY);
+        if (expected == null) return "no token in session";
         String supplied = request.getParameter("csrf");
-        return expected != null && supplied != null && supplied.length() <= 128 &&
-                MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), supplied.getBytes(StandardCharsets.UTF_8));
+        if (supplied == null) return "no token in form";
+        if (supplied.length() > 128 ||
+                !MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), supplied.getBytes(StandardCharsets.UTF_8)))
+            return "token mismatch";
+        return null;
     }
 }

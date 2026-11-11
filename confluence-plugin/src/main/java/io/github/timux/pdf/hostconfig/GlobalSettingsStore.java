@@ -10,13 +10,14 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class GlobalSettingsStore implements LogoStore {
     private static final String KEY = "io.github.timux.confluence.pdf.settings.v1";
     private static final String LOGO_PREFIX = KEY + ".logo.";
     private static final int MAX_LOGO_BYTES = 512_000;
-    private static final Logger LOG = Logger.getLogger(GlobalSettingsStore.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(GlobalSettingsStore.class);
     private final PluginSettingsFactory factory;
     private final TransactionTemplate transactions;
     private final ClusterLockService locks;
