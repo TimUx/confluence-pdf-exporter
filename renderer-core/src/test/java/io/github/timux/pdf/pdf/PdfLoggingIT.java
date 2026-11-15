@@ -18,7 +18,13 @@ class PdfLoggingIT {
         var warnings = new CopyOnWriteArrayList<String>();
         Handler handler = new Handler() {
             @Override public void publish(LogRecord record) {
-                if (record.getLevel().intValue() >= Level.WARNING.intValue()) warnings.add(record.getMessage());
+                if (record.getLevel().intValue() < Level.WARNING.intValue()) return;
+                String message = record.getMessage();
+                // PDFBox scans the host's installed fonts once and reports files it cannot parse
+                // (e.g. the bitmap-only NotoColorEmoji.ttf on current CI runners). That depends on the
+                // machine, not on the export, and is not a font fallback.
+                if (message != null && message.startsWith("Could not load font file")) return;
+                warnings.add(message);
             }
             @Override public void flush() {}
             @Override public void close() {}
