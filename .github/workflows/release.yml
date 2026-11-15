@@ -57,6 +57,19 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
+          # A release published in the GitHub UI creates the tag and triggers
+          # this run: attach the bundle to it and keep its title and notes.
+          # Releases that already carry files are never changed.
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            assets="$(gh release view "$TAG" --json assets --jq '.assets | length')"
+            if [[ "$assets" != 0 ]]; then
+              echo "Error: release $TAG already has $assets assets; nothing is overwritten"
+              exit 1
+            fi
+            echo "Release $TAG already exists without assets; attaching the plugin bundle"
+            gh release upload "$TAG" release/*.jar release/*.zip release/SHA256SUMS
+            exit 0
+          fi
           gh release create "$TAG" release/*.jar release/*.zip release/SHA256SUMS \
             --verify-tag --draft --title "Universal PDF Exporter $VERSION" \
             --notes "Built and automatically tested with Java 21 against Confluence 10.2.19 APIs. Real Confluence installation and cluster validation remain required; see QA-STATUS.md and INSTALLATION.md. The plugin-sources archive preserves the tag's source POM version; the build sets it to the tag version."
