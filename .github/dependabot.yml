@@ -17,6 +17,11 @@ updates:
       - dependency-name: com.atlassian.user:*
       - dependency-name: com.atlassian.renderer:*
       - dependency-name: jakarta.servlet:*
+      # Spring Scanner 7 is built for Java 25 (class file 69) and belongs to the next
+      # Atlassian platform (Confluence 11); the plugin targets Confluence 10.2 on Java 21.
+      # Patch and minor releases of 6.x still come in.
+      - dependency-name: com.atlassian.plugin:atlassian-spring-scanner-*
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
