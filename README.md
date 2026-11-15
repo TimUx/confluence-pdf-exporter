@@ -105,5 +105,8 @@ GitHub Actions führt `clean verify` bei Push und Pull Request aus.
 Dependabot prüft Maven- und Actions-Abhängigkeiten wöchentlich. Ein Tag
 `vX.Y.Z` erzeugt nach erfolgreichen Tests einen **Entwurfsrelease** mit
 Plugin-JAR, Quellarchiven und SHA-256-Prüfsummen; keine automatische
-Produktivfreigabe. Der Release-Workflow wurde noch nicht mit einem Versionstag
+Produktivfreigabe. Wurde das Release vorab in GitHub mit Beschreibung angelegt,
+hängt der Workflow die Dateien daran an, prüft das JAR bytegenau und lässt Titel
+und Beschreibung unverändert; ein Release mit vorhandenen Dateien wird nie
+überschrieben. Der Release-Workflow wurde noch nicht mit einem Versionstag
 ausgeführt; es gibt daher noch keinen verifizierten Release-Anhang.
